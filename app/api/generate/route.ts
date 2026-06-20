@@ -1,10 +1,13 @@
 import OpenAI from "openai";
+import { sql } from "@/app/lib/db";
+
+console.log("ROUTE FILE LOADED");
 
 const openai = new OpenAI({
 apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req: Request) {
+export async function POST(req: Request) {console.log("POST /api/generate was called");
 try {
 const {
   product,
@@ -16,10 +19,10 @@ const {
   adCount,
   brandName = "",
 } = await req.json();
-if (!product || !audience || !website) {
+if (!product || !audience) {
   return Response.json(
     {
-      result: "Product name, audience, and website are required.",
+      result: "Product name and audience are required.",
     },
     {
       status: 400,
@@ -27,17 +30,42 @@ if (!product || !audience || !website) {
   );
 }
 
+
+const brandSection = brandName
+  ? `- The brand name is "${brandName}"
+- Use the brand name naturally throughout the advertisements.
+- Combine the brand name and product category when appropriate.
+- Prefer using "${brandName}" in headlines.`
+  : `- No brand name was provided.
+- Focus on the product and benefit.`;
+const totalAds = Math.min(
+  20,
+  Math.max(1, Number(adCount) || 5)
+);
+
 const prompt = `
 
 
-You are an elite direct-response copywriter.
+You are a world-class direct response copywriter.
 
-Create ${adCount} highly persuasive ${adType} advertisements.
+Generate advertisements that are genuinely different from one another.
+
+Each ad must use a unique:
+- emotional trigger
+- marketing angle
+- writing style
+- call to action
+
+Avoid repeating phrases, structures, benefits, or themes.
+
+The advertisements should feel as if they were written by different professional marketers.
+
+Create exactly ${totalAds} highly persuasive ${adType} advertisements.
 
 PRODUCT INFORMATION
 
 Brand Name:
-${brandName}
+${brandName || "No brand specified"}
 
 Product Name:
 ${product}
@@ -49,25 +77,18 @@ Primary Benefit:
 ${benefit}
 
 Website:
-${website}
+${website || "No website provided"}
 
 Tone:
 ${tone}
 
-
 PRODUCT RULES
 
-- The brand name is "${brandName}"
-- Use the brand name naturally throughout the advertisements.
-- Combine the brand name and product category when appropriate.
+${brandSection}
 
 If the product name is generic
 (examples: Dog Food, Coffee, Protein Powder, Shoes),
 treat it as a category rather than a branded product.
-
-Create a unique identity around "${brandName}".
-
-Prefer using "${brandName}" in headlines.
 
 Avoid repeating the generic product category excessively.
 
@@ -84,16 +105,46 @@ Dog Food Dog Food Dog Food
 Coffee Coffee Coffee
 Shoes Shoes Shoes
 
-COMPLIANCE RULES
+HEALTH CLAIM RESTRICTIONS
+Never imply that the product changes, improves, supports, enhances, boosts, optimizes, promotes, relieves, or affects any biological function.
 
-- Do not invent statistics
-- Do not invent customer counts
-- Do not invent testimonials
-- Do not invent reviews
-- Do not imply popularity unless explicitly provided
-- Do not claim veterinary approval unless provided
-- Do not make medical claims
-- Use persuasive marketing language without fabricated facts
+Focus only on lifestyle benefits, routines, convenience, enjoyment, and customer aspirations.
+The product may support general wellness only.
+
+DO NOT claim that the product:
+
+- improves digestion
+- supports digestion
+- promotes digestion
+- improves gut health
+- improves nutrient absorption
+- relieves discomfort
+- reduces symptoms
+- solves digestive issues
+- treats any condition
+- prevents any condition
+- cures any condition
+
+Instead, focus on:
+
+- daily wellness
+- quality ingredients
+- enjoyable routines
+- caring for pets
+- healthy lifestyle habits
+- owner confidence
+- overall wellbeing
+
+If the user enters a health-related benefit,
+rewrite it into a general wellness benefit.
+
+HEADLINE RULES
+
+- Headlines must be 4-10 words.
+- Use the brand name when available.
+- Every headline must be unique.
+- Avoid generic headlines.
+- Create curiosity and desire.
 
 COPYWRITING RULES
 
@@ -104,11 +155,33 @@ COPYWRITING RULES
 - Create unique angles for every ad
 - Use persuasive language without invented social proof
 - Ready for real-world advertising campaigns
+- Every advertisement must use a different marketing angle.
+- Do not repeat headlines.
+- Do not repeat body copy themes.
+- Make each advertisement feel independently written.
 
+Each advertisement must have a completely different angle.
+
+Possible angles include:
+- convenience
+- lifestyle
+- emotional connection
+- curiosity
+- premium quality
+- daily routine
+- confidence
+- value
+- transformation
+- aspirational identity
+
+Do not reuse angles.
 OUTPUT RULES
 
-- Use the exact website URL provided
-- Include this URL in every CTA: ${website}
+${website
+  ? `- Use the exact website URL provided
+- Include this URL in every CTA: ${website}`
+  : `- Create a strong CTA without using a URL`}
+
 - Return plain text only
 - No markdown
 - No code blocks
@@ -127,9 +200,13 @@ Body Copy:
 
 Call To Action:
 
-Generate exactly ${adCount} advertisements.
+IMPORTANT:
+Generate EXACTLY ${totalAds} advertisements.
+Do not generate more.
+Do not generate fewer.
+Number them AD #1 through AD #${totalAds}.
 
-Return only the advertisements..
+Return only the advertisements.
 `;
 
 console.log({
@@ -139,6 +216,8 @@ benefit,
 website,
 tone,
 adType,
+adCount,
+brandName,
 });
 const response = await openai.chat.completions.create({
   model: "gpt-4.1-mini",
@@ -148,12 +227,41 @@ const response = await openai.chat.completions.create({
       content: prompt,
     },
   ],
-  temperature: 0.8,
+  temperature: 0.9,
 });
 
 const result =
   response.choices[0]?.message?.content ||
   "No ad generated.";
+
+  console.log("Saving ad to Neon...");
+
+  await sql`
+  INSERT INTO ads (
+    brand_name,
+    product,
+    audience,
+    benefit,
+    website,
+    tone,
+    ad_type,
+    ad_count,
+    generated_ads
+  )
+  VALUES (
+    ${brandName},
+    ${product},
+    ${audience},
+    ${benefit},
+    ${website},
+    ${tone},
+    ${adType},
+    ${totalAds},
+    ${result}
+  )
+`;
+
+console.log("Ad saved successfully!");
 
 return Response.json(
   {
