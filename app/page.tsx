@@ -18,6 +18,7 @@ const [loading, setLoading] = useState(false);
 const [history, setHistory] = useState<string[]>([]);
 const [darkMode, setDarkMode] = useState(false);
 const [brandName, setBrandName] = useState("");
+const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
 useEffect(() => {
 const savedHistory = localStorage.getItem("adHistory");
 if (savedHistory) {
@@ -28,6 +29,19 @@ setHistory(JSON.parse(savedHistory));
 useEffect(() => {
 localStorage.setItem("adHistory", JSON.stringify(history));
 }, [history]);
+
+useEffect(() => {
+  async function loadCredits() {
+    if (!isSignedIn) return;
+
+    const res = await fetch("/api/user");
+    const data = await res.json();
+
+    setCreditsLeft(data.ads_limit - data.ads_used);
+  }
+
+  loadCredits();
+}, [isSignedIn]);
 
 async function generateAds() {
 if (!isSignedIn) {
@@ -64,6 +78,10 @@ if (!isSignedIn) {
 
     setResult(data.result);
     setHistory((prev) => [data.result, ...prev]);
+    const userRes = await fetch("/api/user");
+const userData = await userRes.json();
+
+setCreditsLeft(userData.ads_limit - userData.ads_used);
   } catch (error) {
     setResult("Something went wrong.");
   }
@@ -122,7 +140,6 @@ borderRadius: "8px",
 {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"} </button>
 
     <h1>🚀 AI Ad Generator Pro</h1>
-
 <p>Signed In: {isSignedIn ? "YES" : "NO"}</p>
 {creditsLeft !== null && (
   <p>Free Ads Remaining: {creditsLeft} / 50</p>
@@ -229,7 +246,7 @@ borderRadius: "8px",
 </select>
     <button
       onClick={generateAds}
-      disabled={loading}
+      disabled={loading || creditsLeft === 0}
       style={{
         background: "#2563eb",
         color: "white",
@@ -239,7 +256,13 @@ borderRadius: "8px",
         cursor: "pointer",
       }}
     >
-      {loading ? "Generating..." : "🚀 Generate Ads"}
+      {
+  creditsLeft === 0
+    ? "No Credits Remaining"
+    : loading
+    ? "Generating..."
+    : "🚀 Generate Ads"
+}
     </button>
 
     {result && (
