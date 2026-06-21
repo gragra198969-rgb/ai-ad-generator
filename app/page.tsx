@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 
+import { useUser } from "@clerk/nextjs";
+
 export default function Home() {
+  const { isSignedIn, user } = useUser();
 const [product, setProduct] = useState("");
 const [audience, setAudience] = useState("");
 const [benefit, setBenefit] = useState("");
@@ -14,7 +17,7 @@ const [result, setResult] = useState("");
 const [loading, setLoading] = useState(false);
 const [history, setHistory] = useState<string[]>([]);
 const [darkMode, setDarkMode] = useState(false);
-
+const [brandName, setBrandName] = useState("");
 useEffect(() => {
 const savedHistory = localStorage.getItem("adHistory");
 if (savedHistory) {
@@ -27,40 +30,45 @@ localStorage.setItem("adHistory", JSON.stringify(history));
 }, [history]);
 
 async function generateAds() {
-if (!product || !audience) {
-setResult("Please enter a product and audience.");
-return;
+if (!isSignedIn) {
+  setResult("Please sign in to generate ads.");
+  return;
 }
 
-setLoading(true);
+  if (!product || !audience) {
+    setResult("Please enter a product and audience.");
+    return;
+  }
 
-try {
-  const response = await fetch("/api/generate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      product,
-      audience,
-      benefit,
-      website,
-      tone,
-      adType,
-      adCount,
-    }),
-  });
+  setLoading(true);
 
-  const data = await response.json();
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        brandName,
+        product,
+        audience,
+        benefit,
+        website,
+        tone,
+        adType,
+        adCount,
+      }),
+    });
 
-  setResult(data.result);
-  setHistory((prev) => [data.result, ...prev]);
-} catch (error) {
-  setResult("Something went wrong.");
-}
+    const data = await response.json();
 
-setLoading(false);
+    setResult(data.result);
+    setHistory((prev) => [data.result, ...prev]);
+  } catch (error) {
+    setResult("Something went wrong.");
+  }
 
+  setLoading(false);
 }
 
 async function copyAds() {
@@ -115,10 +123,12 @@ borderRadius: "8px",
 
     <h1>🚀 AI Ad Generator Pro</h1>
 
+<p>Signed In: {isSignedIn ? "YES" : "NO"}</p>
+
     <input
-      placeholder="Product Name"
-      value={product}
-      onChange={(e) => setProduct(e.target.value)}
+      placeholder="Brand Name"
+      value={brandName}
+      onChange={(e) => setBrandName(e.target.value)}
       style={{
         width: "100%",
         padding: "14px",
@@ -126,6 +136,17 @@ borderRadius: "8px",
         marginBottom: "15px",
       }}
     />
+
+<input
+  placeholder="Product Name"
+  value={product}
+  onChange={(e) => setProduct(e.target.value)}
+  style={{
+    width: "100%",
+    padding: "14px",
+    marginBottom: "15px",
+  }}
+/>
 
     <input
       placeholder="Target Audience"

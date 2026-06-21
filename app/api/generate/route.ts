@@ -1,13 +1,47 @@
 import OpenAI from "openai";
 import { sql } from "@/app/lib/db";
+import { auth } from "@clerk/nextjs/server";
 
 console.log("ROUTE FILE LOADED");
 
 const openai = new OpenAI({
 apiKey: process.env.OPENAI_API_KEY,
 });
+export async function POST(req: Request) {
+  const { userId } = await auth();
 
-export async function POST(req: Request) {console.log("POST /api/generate was called");
+  if (!userId) {
+    return Response.json(
+      { result: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+  await sql`
+  INSERT INTO users (clerk_user_id)
+  VALUES (${userId})
+  ON CONFLICT (clerk_user_id)
+  DO NOTHING
+`;
+
+const userRecord = await sql`
+  SELECT *
+  FROM users
+  WHERE clerk_user_id = ${userId}
+`;
+
+const user = userRecord[0];
+
+if (user.ads_used >= user.ads_limit) {
+  return Response.json(
+    {
+      result: "You have used all 50 free ads this month."
+    },
+    {
+      status: 403
+    }
+  );
+}
+console.log("POST /api/generate was called");
 try {
 const {
   product,
@@ -233,7 +267,11 @@ const response = await openai.chat.completions.create({
 const result =
   response.choices[0]?.message?.content ||
   "No ad generated.";
-
+await sql`
+  UPDATE users
+  SET ads_used = ads_used + 1
+  WHERE clerk_user_id = ${userId}
+`;
   console.log("Saving ad to Neon...");
 
   await sql`
