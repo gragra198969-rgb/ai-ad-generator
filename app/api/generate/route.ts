@@ -16,6 +16,7 @@ export async function POST(req: Request) {
       { status: 401 }
     );
   }
+  
   await sql`
   INSERT INTO users (clerk_user_id)
   VALUES (${userId})
@@ -31,6 +32,12 @@ const userRecord = await sql`
 
 const user = userRecord[0];
 
+if (!user) {
+  return Response.json(
+    { result: "User record not found." },
+    { status: 500 }
+  );
+}
 if (user.ads_used >= user.ads_limit) {
   return Response.json(
     {
