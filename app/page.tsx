@@ -124,7 +124,9 @@ borderRadius: "8px",
     <h1>🚀 AI Ad Generator Pro</h1>
 
 <p>Signed In: {isSignedIn ? "YES" : "NO"}</p>
-
+{creditsLeft !== null && (
+  <p>Free Ads Remaining: {creditsLeft} / 50</p>
+)}
     <input
       placeholder="Brand Name"
       value={brandName}
