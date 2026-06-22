@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     try {
       await sql`
         UPDATE users
-        SET ads_limit = 999999
+        SET ads_limit = 1000
         WHERE clerk_user_id = ${clerkUserId}
       `;
 

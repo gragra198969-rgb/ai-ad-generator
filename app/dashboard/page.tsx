@@ -105,9 +105,17 @@ marginBottom: "20px",
 
     <h1>📊 Dashboard</h1>
 
-    <p style={{ fontSize: "18px" }}>
-      💳 Credits Left: <strong>{creditsLeft}</strong>
-    </p>
+    {creditsLeft !== null && creditsLeft > 1000 ? (
+  <p style={{ fontSize: "18px", color: "green" }}>
+    🚀 Pro Plan Active
+    <br />
+    💳 Credits Left: <strong>{creditsLeft}</strong>
+  </p>
+) : (
+  <p style={{ fontSize: "18px" }}>
+    💳 Free Credits Left: <strong>{creditsLeft}</strong>
+  </p>
+)}
 
     <h2 style={{ marginTop: "30px" }}>
       💾 Saved Ads

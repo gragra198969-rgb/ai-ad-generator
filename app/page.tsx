@@ -410,7 +410,6 @@ borderRadius: "8px",
         {ad}
       </div>
     ))}
-
     <button
       onClick={() => setHistory([])}
       style={{
@@ -427,6 +426,17 @@ borderRadius: "8px",
     </button>
   </div>
 )}
+
+<div
+  style={{
+    marginTop: "40px",
+    textAlign: "center",
+  }}
+>
+  <a href="/privacy">Privacy Policy</a>
+  {" | "}
+  <a href="/terms">Terms of Service</a>
+</div>
 
     </div>
   </main>
