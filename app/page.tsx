@@ -320,6 +320,21 @@ borderRadius: "8px",
 >
   💎 Upgrade to Pro – $19.99/month
 </button>
+
+<p
+  style={{
+    fontSize: "14px",
+    color: darkMode ? "#d1d5db" : "#6b7280",
+    marginTop: "10px",
+    textAlign: "center",
+  }}
+>
+  ✓ 1000 Ad Credits Per Month
+  <br />
+  ✓ Save Unlimited Ads
+  <br />
+  ✓ No Free Plan Limits
+</p>
     {result && (
       <>
         <div
