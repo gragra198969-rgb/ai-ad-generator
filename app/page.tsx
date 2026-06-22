@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 
 import { useUser } from "@clerk/nextjs";
 
+
 export default function Home() {
-  const { isSignedIn, user } = useUser();
+const { isSignedIn } = useUser();
 const [product, setProduct] = useState("");
 const [audience, setAudience] = useState("");
 const [benefit, setBenefit] = useState("");
@@ -19,6 +20,7 @@ const [history, setHistory] = useState<string[]>([]);
 const [darkMode, setDarkMode] = useState(false);
 const [brandName, setBrandName] = useState("");
 const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
+const [savedAds, setSavedAds] = useState<any[]>([]);
 useEffect(() => {
 const savedHistory = localStorage.getItem("adHistory");
 if (savedHistory) {
@@ -38,9 +40,28 @@ useEffect(() => {
     const data = await res.json();
 
     setCreditsLeft(data.ads_limit - data.ads_used);
+
+    const adsRes = await fetch("/api/ads");
+
+const adsData = await adsRes.json();
+
+setSavedAds(adsData);
   }
 
   loadCredits();
+}, [isSignedIn]);
+
+useEffect(() => {
+  async function loadSavedAds() {
+    if (!isSignedIn) return;
+
+    const res = await fetch("/api/ads");
+    const data = await res.json();
+
+    setSavedAds(data);
+  }
+
+  loadSavedAds();
 }, [isSignedIn]);
 
 async function generateAds() {
@@ -141,6 +162,19 @@ borderRadius: "8px",
 
     <h1>🚀 AI Ad Generator Pro</h1>
 <p>Signed In: {isSignedIn ? "YES" : "NO"}</p>
+
+<button
+  onClick={() => (window.location.href = "/dashboard")}
+  style={{
+    marginTop: "20px",
+    padding: "10px",
+    borderRadius: "8px",
+    background: "#111827",
+    color: "white",
+  }}
+>
+  Go to Dashboard
+</button>
 {creditsLeft !== null && (
   <p>Free Ads Remaining: {creditsLeft} / 50</p>
 )}
@@ -264,7 +298,28 @@ borderRadius: "8px",
     : "🚀 Generate Ads"
 }
     </button>
+<button
+  onClick={async () => {
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+    });
 
+    const data = await res.json();
+
+    window.location.href = data.url;
+  }}
+  style={{
+    marginLeft: "10px",
+    background: "#635bff",
+    color: "white",
+    border: "none",
+    padding: "14px 24px",
+    borderRadius: "10px",
+    cursor: "pointer",
+  }}
+>
+  💎 Upgrade to Pro – $19.99/month
+</button>
     {result && (
       <>
         <div
@@ -310,43 +365,70 @@ borderRadius: "8px",
       </>
     )}
 
-    {history.length > 0 && (
-      <div style={{ marginTop: "40px" }}>
-        <h2>📜 Previous Ads ({history.length})</h2>
+{savedAds.length > 0 && (
+  <div style={{ marginTop: "40px" }}>
+    <h2>💾 Saved Ads (Database)</h2>
 
-        {history.map((ad, index) => (
-          <div
-            key={index}
-            style={{
-              background: darkMode ? "#374151" : "#f8f8f8",
-              padding: "15px",
-              borderRadius: "10px",
-              marginTop: "10px",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {ad}
-          </div>
-        ))}
+    {savedAds.map((ad) => (
+      <div
+        key={ad.id}
+        style={{
+          background: darkMode ? "#374151" : "#f8f8f8",
+          padding: "15px",
+          borderRadius: "10px",
+          marginTop: "10px",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        <strong>{ad.brand_name}</strong>
+        <div>{ad.product}</div>
 
-        <button
-          onClick={() => setHistory([])}
-          style={{
-            marginTop: "20px",
-            background: "#ef4444",
-            color: "white",
-            border: "none",
-            padding: "12px 20px",
-            borderRadius: "10px",
-            cursor: "pointer",
-          }}
-        >
-          🗑 Clear History
-        </button>
+        <details style={{ marginTop: "10px" }}>
+          <summary>View Ads</summary>
+          <pre>{ad.generated_ads}</pre>
+        </details>
       </div>
-    )}
+    ))}
   </div>
-</main>
+)}
 
+{history.length > 0 && (
+  <div style={{ marginTop: "40px" }}>
+    <h2>📜 Previous Ads ({history.length})</h2>
+
+    {history.map((ad, index) => (
+      <div
+        key={index}
+        style={{
+          background: darkMode ? "#374151" : "#f8f8f8",
+          padding: "15px",
+          borderRadius: "10px",
+          marginTop: "10px",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {ad}
+      </div>
+    ))}
+
+    <button
+      onClick={() => setHistory([])}
+      style={{
+        marginTop: "20px",
+        background: "#ef4444",
+        color: "white",
+        border: "none",
+        padding: "12px 20px",
+        borderRadius: "10px",
+        cursor: "pointer",
+      }}
+    >
+      🗑 Clear History
+    </button>
+  </div>
+)}
+
+    </div>
+  </main>
 );
 }
