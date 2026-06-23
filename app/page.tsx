@@ -24,6 +24,10 @@ const [savedAds, setSavedAds] = useState<any[]>([]);
 
 const [generatedImage, setGeneratedImage] =
   useState("");
+
+const [imageLoading, setImageLoading] =
+  useState(false);
+
 useEffect(() => {
 const savedHistory = localStorage.getItem("adHistory");
 if (savedHistory) {
@@ -113,6 +117,8 @@ setCreditsLeft(userData.ads_limit - userData.ads_used);
   setLoading(false);
 }
 async function generateImage() {
+  setImageLoading(true);
+
   try {
     const res = await fetch(
       "/api/generate-image",
@@ -132,10 +138,14 @@ async function generateImage() {
 
     const data = await res.json();
 
-    setGeneratedImage(data.image);
+    setGeneratedImage(
+      `data:image/png;base64,${data.image}`
+    );
   } catch (err) {
     console.error(err);
   }
+
+  setImageLoading(false);
 }
 async function copyAds() {
 await navigator.clipboard.writeText(result);
@@ -419,7 +429,16 @@ borderRadius: "8px",
 >
   🎨 Generate Ad Image
 </button>
-
+{imageLoading && (
+  <div
+    style={{
+      marginTop: "20px",
+      textAlign: "center",
+    }}
+  >
+    ⏳ Creating your AI ad image...
+  </div>
+)}
 {generatedImage && (
   <div
     style={{
