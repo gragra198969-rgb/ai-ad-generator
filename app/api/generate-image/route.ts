@@ -35,9 +35,8 @@ Style:
     });
 
     return Response.json({
-      image:
-        image.data?.[0]?.b64_json,
-    });
+  image: `data:image/png;base64,${image.data?.[0]?.b64_json}`,
+});
   } catch (error: any) {
     return Response.json(
       { error: error.message },
