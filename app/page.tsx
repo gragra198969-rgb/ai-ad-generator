@@ -434,9 +434,12 @@ borderRadius: "8px",
     style={{
       marginTop: "20px",
       textAlign: "center",
+      fontSize: "18px",
     }}
   >
-    ⏳ Creating your AI ad image...
+    🎨 Generating image...
+    <br />
+    ⏳ Please wait 20-30 seconds
   </div>
 )}
 {generatedImage && (
