@@ -21,6 +21,9 @@ const [darkMode, setDarkMode] = useState(false);
 const [brandName, setBrandName] = useState("");
 const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
 const [savedAds, setSavedAds] = useState<any[]>([]);
+
+const [generatedImage, setGeneratedImage] =
+  useState("");
 useEffect(() => {
 const savedHistory = localStorage.getItem("adHistory");
 if (savedHistory) {
@@ -109,7 +112,31 @@ setCreditsLeft(userData.ads_limit - userData.ads_used);
 
   setLoading(false);
 }
+async function generateImage() {
+  try {
+    const res = await fetch(
+      "/api/generate-image",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          product,
+          audience,
+          benefit,
+        }),
+      }
+    );
 
+    const data = await res.json();
+
+    setGeneratedImage(data.image);
+  } catch (err) {
+    console.error(err);
+  }
+}
 async function copyAds() {
 await navigator.clipboard.writeText(result);
 alert("Ads copied!");
@@ -377,6 +404,39 @@ borderRadius: "8px",
         >
           📥 Download
         </button>
+<button
+  onClick={generateImage}
+  style={{
+    marginTop: "15px",
+    marginLeft: "10px",
+    background: "#f59e0b",
+    color: "white",
+    border: "none",
+    padding: "12px 20px",
+    borderRadius: "10px",
+    cursor: "pointer",
+  }}
+>
+  🎨 Generate Ad Image
+</button>
+
+{generatedImage && (
+  <div
+    style={{
+      marginTop: "20px",
+      textAlign: "center",
+    }}
+  >
+    <img
+      src={generatedImage}
+      alt="Generated Ad"
+      style={{
+        maxWidth: "100%",
+        borderRadius: "12px",
+      }}
+    />
+  </div>
+)}
       </>
     )}
 
