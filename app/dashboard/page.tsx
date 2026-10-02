@@ -3,10 +3,19 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
+type SavedAd = {
+id: number;
+brand_name?: string;
+product?: string;
+audience?: string;
+created_at: string | Date;
+generated_ads?: string;
+};
+
 export default function Dashboard() {
 const { isSignedIn } = useUser();
 
-const [savedAds, setSavedAds] = useState<any[]>([]);
+const [savedAds, setSavedAds] = useState<SavedAd[]>([]);
 const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
 const [loading, setLoading] = useState(true);
 const [search, setSearch] = useState("");
@@ -28,7 +37,7 @@ return;
     const adsData = await adsRes.json();
 
     setCreditsLeft(userData.ads_limit - userData.ads_used);
-    setSavedAds(adsData);
+    setSavedAds(Array.isArray(adsData) ? adsData : []);
   } catch (error) {
     console.error(error);
   }
