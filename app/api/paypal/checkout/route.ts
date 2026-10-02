@@ -17,6 +17,36 @@ export async function POST() {
       return Response.json({ error: "This account already has Pro access." }, { status: 409 });
     }
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS paypal_subscriptions (
+        subscription_id TEXT PRIMARY KEY,
+        clerk_user_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        approval_url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'APPROVAL_PENDING',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS paypal_one_pending_subscription_per_user
+      ON paypal_subscriptions (clerk_user_id)
+      WHERE status = 'APPROVAL_PENDING'
+    `;
+    await sql`
+      UPDATE paypal_subscriptions SET status = 'EXPIRED', updated_at = NOW()
+      WHERE clerk_user_id = ${userId}
+        AND status = 'APPROVAL_PENDING'
+        AND updated_at < NOW() - INTERVAL '30 minutes'
+    `;
+    const [pending] = await sql`
+      SELECT approval_url FROM paypal_subscriptions
+      WHERE clerk_user_id = ${userId}
+        AND status = 'APPROVAL_PENDING'
+        AND updated_at >= NOW() - INTERVAL '30 minutes'
+      ORDER BY updated_at DESC LIMIT 1
+    `;
+    if (pending?.approval_url) return Response.json({ url: pending.approval_url });
+
     const token = await getPayPalAccessToken();
     const response = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions`, {
       method: "POST",
@@ -49,8 +79,26 @@ export async function POST() {
     }
 
     const approvalUrl = subscription.links?.find((link) => link.rel === "approve")?.href;
-    if (!approvalUrl) {
+    const subscriptionId = (subscription as { id?: string }).id;
+    if (!approvalUrl || !subscriptionId) {
       return Response.json({ error: "PayPal did not return an approval link." }, { status: 502 });
+    }
+
+    try {
+      await sql`
+        INSERT INTO paypal_subscriptions
+          (subscription_id, clerk_user_id, plan_id, approval_url, status)
+        VALUES
+          (${subscriptionId}, ${userId}, ${process.env.PAYPAL_PLAN_ID!}, ${approvalUrl}, 'APPROVAL_PENDING')
+      `;
+    } catch (error) {
+      const [existing] = await sql`
+        SELECT approval_url FROM paypal_subscriptions
+        WHERE clerk_user_id = ${userId} AND status = 'APPROVAL_PENDING'
+        ORDER BY updated_at DESC LIMIT 1
+      `;
+      if (existing?.approval_url) return Response.json({ url: existing.approval_url });
+      throw error;
     }
 
     return Response.json({ url: approvalUrl });
