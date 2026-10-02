@@ -24,6 +24,7 @@ export default function Home() {
   const [adCount, setAdCount] = useState("5");
   const [result, setResult] = useState("");
   const [message, setMessage] = useState("");
+  const [checkoutMessage, setCheckoutMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
@@ -108,6 +109,22 @@ export default function Home() {
       window.location.href = data.url;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Couldn’t open checkout.");
+    }
+  }
+
+  async function upgradeWithPayPal() {
+    setCheckoutMessage("");
+    if (!isSignedIn) {
+      setCheckoutMessage("Create a free account or sign in to continue to secure checkout.");
+      return;
+    }
+    try {
+      const response = await fetch("/api/paypal/checkout", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok || !data.url) throw new Error(data.error || "PayPal checkout is unavailable right now.");
+      window.location.href = data.url;
+    } catch (error) {
+      setCheckoutMessage(error instanceof Error ? error.message : "Couldn’t open PayPal checkout.");
     }
   }
 
@@ -220,7 +237,8 @@ export default function Home() {
               <div className="mt-3 text-4xl font-semibold tracking-[-.05em]">$19.99<span className="text-sm font-normal tracking-normal text-white/60"> / month</span></div>
               <p className="mt-3 text-sm text-white/65">More room for more good ideas.</p>
               <ul className="mt-6 space-y-3 text-sm text-white/85"><li>✓ 1,000 generations each month</li><li>✓ Save unlimited ads</li><li>✓ Keep every campaign in one place</li></ul>
-              {isSignedIn ? <button onClick={upgrade} className="mt-7 block w-full rounded-full bg-white px-4 py-3 text-center text-sm font-semibold text-[#35563c] transition hover:bg-[#edf1e8]">Upgrade to Pro ↗</button> : <SignUpButton mode="modal"><button className="mt-7 block w-full rounded-full bg-white px-4 py-3 text-center text-sm font-semibold text-[#35563c] transition hover:bg-[#edf1e8]">Create an account to choose Pro ↗</button></SignUpButton>}
+              {isSignedIn ? <div className="mt-7 space-y-3"><button onClick={upgrade} className="block w-full rounded-full bg-white px-4 py-3 text-center text-sm font-semibold text-[#35563c] transition hover:bg-[#edf1e8]">Subscribe by card ↗</button>{process.env.NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED === "true" && <button onClick={upgradeWithPayPal} className="block w-full rounded-full border border-white/35 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-white/10">Subscribe with PayPal ↗</button>}</div> : <SignUpButton mode="modal"><button className="mt-7 block w-full rounded-full bg-white px-4 py-3 text-center text-sm font-semibold text-[#35563c] transition hover:bg-[#edf1e8]">Create an account to choose Pro ↗</button></SignUpButton>}
+              {checkoutMessage && <p aria-live="polite" className="mt-3 rounded-xl bg-white/10 px-4 py-3 text-sm text-white">{checkoutMessage}</p>}
             </div>
           </div>
         </div>
@@ -232,3 +250,4 @@ export default function Home() {
     </main>
   );
 }
+
