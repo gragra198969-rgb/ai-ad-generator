@@ -35,6 +35,16 @@ export async function POST(request: Request) {
         processed_at TIMESTAMPTZ
       )
     `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS paypal_subscriptions (
+        subscription_id TEXT PRIMARY KEY,
+        clerk_user_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        approval_url TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'APPROVAL_PENDING',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
     const inserted = await sql`
       INSERT INTO paypal_webhook_events (event_id)
       VALUES (${event.id})
@@ -69,12 +79,23 @@ export async function POST(request: Request) {
 
       if (event.event_type === "PAYMENT.SALE.COMPLETED") {
         await sql`
+          INSERT INTO paypal_subscriptions
+            (subscription_id, clerk_user_id, plan_id, approval_url, status)
+          VALUES (${subscriptionId}, ${userId}, ${subscription.plan_id}, '', ${subscription.status})
+          ON CONFLICT (subscription_id) DO UPDATE
+          SET status = EXCLUDED.status, updated_at = NOW()
+        `;
+        await sql`
           INSERT INTO users (clerk_user_id, ads_used, ads_limit)
           VALUES (${userId}, 0, 1000)
           ON CONFLICT (clerk_user_id)
           DO UPDATE SET ads_used = 0, ads_limit = 1000
         `;
       } else if (["CANCELLED", "SUSPENDED", "EXPIRED"].includes(subscription.status)) {
+        await sql`
+          UPDATE paypal_subscriptions SET status = ${subscription.status}, updated_at = NOW()
+          WHERE subscription_id = ${subscriptionId} AND clerk_user_id = ${userId}
+        `;
         await sql`
           UPDATE users SET ads_used = 0, ads_limit = 50
           WHERE clerk_user_id = ${userId}
