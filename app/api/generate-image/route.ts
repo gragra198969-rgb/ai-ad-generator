@@ -37,9 +37,9 @@ Style:
     return Response.json({
   image: `data:image/png;base64,${image.data?.[0]?.b64_json}`,
 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return Response.json(
-      { error: error.message },
+      { error: error instanceof Error ? error.message : "Image generation failed." },
       { status: 500 }
     );
   }

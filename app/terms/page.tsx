@@ -35,7 +35,7 @@ export default function TermsPage() {
 
       <h2>Limitation of Liability</h2>
       <p>
-        The service is provided "as is" without warranties of any kind.
+        The service is provided &quot;as is&quot; without warranties of any kind.
       </p>
 
       <h2>Contact</h2>

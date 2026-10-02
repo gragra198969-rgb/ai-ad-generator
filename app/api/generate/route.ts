@@ -316,10 +316,11 @@ return Response.json(
     status: 200,
   }
 );
-} catch (error: any) {
+} catch (error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown error";
   return Response.json(
     {
-      result: `Error generating ads: ${error?.message || "Unknown error"}`,
+      result: `Error generating ads: ${message}`,
     },
     {
       status: 500,

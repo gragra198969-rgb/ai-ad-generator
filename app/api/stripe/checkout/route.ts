@@ -9,11 +9,6 @@ const stripe = new Stripe(
 export async function POST() {
   const { userId } = await auth();
 
-  console.log("Creating checkout for user:", userId);
-console.log(
-  "Stripe key prefix:",
-  process.env.STRIPE_SECRET_KEY?.slice(0, 8)
-);
   if (!userId) {
     return NextResponse.json(
       { error: "Unauthorized" },
@@ -27,6 +22,9 @@ console.log(
         mode: "subscription",
 
         client_reference_id: userId,
+        subscription_data: {
+          metadata: { clerk_user_id: userId },
+        },
 
         line_items: [
           {
@@ -45,11 +43,11 @@ console.log(
     return NextResponse.json({
       url: session.url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
 
     return NextResponse.json(
-      { error: error.message },
+      { error: error instanceof Error ? error.message : "Unable to create checkout session." },
       { status: 500 }
     );
   }
