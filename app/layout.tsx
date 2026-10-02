@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  UserButton,
 } from "@clerk/nextjs";
 import "./globals.css";
 
@@ -19,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Ad Generator Pro",
-  description: "Generate AI-powered advertisements",
+  title: "AdSurvey Studio — Create ads. Listen better.",
+  description: "Create thoughtful ad campaigns, ask better questions, and bring customer feedback into your next big idea.",
 };
 
 export default function RootLayout({
@@ -34,22 +31,7 @@ export default function RootLayout({
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       >
-        <body className="min-h-full flex flex-col">
-<header
-  style={{
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "12px",
-    padding: "16px",
-  }}
->
-  <SignInButton />
-  <SignUpButton />
-  <UserButton />
-</header>
-
-          {children}
-        </body>
+        <body className="min-h-full flex flex-col">{children}</body>
       </html>
     </ClerkProvider>
   );
