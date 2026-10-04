@@ -3,7 +3,7 @@ export default function PrivacyPage() {
     <main style={{ maxWidth: "800px", margin: "0 auto", padding: "40px" }}>
       <h1>Privacy Policy</h1>
 
-      <p>Last updated: June 2026</p>
+      <p>Last updated: October 2026</p>
 
       <h2>Information We Collect</h2>
       <p>
@@ -19,8 +19,10 @@ export default function PrivacyPage() {
 
       <h2>Payments</h2>
       <p>
-        Payments are processed securely through Stripe. We do not store credit
-        card information on our servers.
+        Payments are processed by Stripe or PayPal, depending on the checkout
+        option you choose. We do not store payment card details on our servers.
+        PayPal processes PayPal subscription payments under its own privacy
+        policy and terms.
       </p>
 
       <h2>Data Storage</h2>
@@ -37,3 +39,4 @@ export default function PrivacyPage() {
     </main>
   );
 }
+

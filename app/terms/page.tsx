@@ -3,11 +3,11 @@ export default function TermsPage() {
     <main style={{ maxWidth: "800px", margin: "0 auto", padding: "40px" }}>
       <h1>Terms of Service</h1>
 
-      <p>Last updated: June 2026</p>
+      <p>Last updated: October 2026</p>
 
       <h2>Acceptance of Terms</h2>
       <p>
-        By using AI Ad Generator Pro, you agree to these Terms of Service.
+        By using AdSurvey Studio, you agree to these Terms of Service.
       </p>
 
       <h2>Service Description</h2>
@@ -24,7 +24,11 @@ export default function TermsPage() {
 
       <h2>Subscriptions</h2>
       <p>
-        Paid subscriptions renew automatically unless canceled through Stripe.
+        Pro subscriptions renew monthly unless canceled through the payment
+        provider used at checkout. Stripe card subscriptions are managed through
+        Stripe, and PayPal subscriptions are managed through PayPal. Pro access
+        follows confirmed subscription payments and may end when a subscription
+        is canceled, expires, or is suspended.
       </p>
 
       <h2>No Guarantees</h2>
@@ -45,3 +49,4 @@ export default function TermsPage() {
     </main>
   );
 }
+
