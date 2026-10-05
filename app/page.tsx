@@ -172,7 +172,33 @@ export default function Home() {
             <div className="absolute -left-5 top-16 z-10 hidden rounded-2xl border border-black/5 bg-white p-4 shadow-xl shadow-black/5 sm:block"><div className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#9a9e92]">A better starting brief</div><div className="mt-2 text-sm font-semibold text-[#35563c]">Product · audience · voice</div><div className="mt-1 text-[10px] text-[#777d70]">Small details shape the copy</div><div className="mt-3 flex gap-1.5">{["bg-[#cbd8bf]", "bg-[#e8d7c3]", "bg-[#d3dfdc]"].map((tone) => <i key={tone} className={`h-2 w-8 rounded-full ${tone}`} />)}</div></div>
             <div className="overflow-hidden rounded-[2rem] border border-black/5 bg-white p-3 shadow-[0_35px_100px_-45px_rgba(40,55,36,.35)] sm:p-5">
               <div className="flex items-center justify-between px-2 pb-4 pt-1"><div><div className="text-xs font-semibold text-[#a0a399]">CAMPAIGN IDEA · SAMPLE</div><div className="mt-1 text-sm font-semibold">A little more you, everywhere</div></div><span className="rounded-full bg-[#edf3e8] px-3 py-1.5 text-[10px] font-semibold text-[#58734c]">CONCEPT</span></div>
-              <div className="rounded-[1.5rem] bg-[#f3f5ed] p-5 sm:p-7"><div className="flex items-center justify-between"><span className="text-xs font-semibold tracking-wide text-[#667360]">SAMPLE CAMPAIGN</span><span className="text-xs text-[#92988c]">Illustrative concept</span></div><div className="mt-8 max-w-sm"><div className="text-3xl font-semibold leading-tight tracking-[-.04em] text-[#2d392b]">Make room for <span className="font-serif italic font-normal text-[#668154]">better days.</span></div><p className="mt-3 max-w-xs text-sm leading-6 text-[#727a6d]">A sample direction for a fictional everyday essentials brand.</p><span className="mt-5 inline-flex rounded-full bg-[#35563c] px-5 py-2.5 text-xs font-semibold text-white">Example ad concept ↗</span></div><div className="mt-8 flex items-end justify-between"><div className="flex gap-2"><span className="h-14 w-14 rounded-full bg-[#d2ddc7]"/><span className="h-14 w-14 rounded-full bg-[#e7d7c5]"/><span className="h-14 w-14 rounded-full bg-[#cbdad4]"/></div><span className="rounded-full bg-white px-3 py-2 text-[10px] font-medium text-[#65705f]">✦ On-brand copy</span></div></div>
+              <div className="rounded-[1.5rem] bg-[#f3f5ed] p-5 sm:p-7"><div className="flex items-center justify-between"><span className="text-xs font-semibold tracking-wide text-[#667360]">SAMPLE CAMPAIGN</span><span className="text-xs text-[#92988c]">Illustrative concept</span></div><div className="mt-8 max-w-sm"><div className="text-3xl font-semibold leading-tight tracking-[-.04em] text-[#2d392b]">Make room for <span className="font-serif italic font-normal text-[#668154]">better days.</span></div><p className="mt-3 max-w-xs text-sm leading-6 text-[#727a6d]">A sample direction for a fictional everyday essentials brand.</p><details className="group mt-5">
+                  <summary className="inline-flex cursor-pointer list-none items-center rounded-full bg-[#35563c] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#28452f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#35563c] [&::-webkit-details-marker]:hidden">
+                    <span className="group-open:hidden">View sample ads ↗</span>
+                    <span className="hidden group-open:inline">Close sample ads ↑</span>
+                  </summary>
+                  <div className="mt-4 rounded-2xl border border-[#dbe3d4] bg-white p-4 text-[#2d392b]">
+                    <h3 className="text-sm font-semibold">Sunday Supply · sample campaign</h3>
+                    <p className="mt-2 text-xs leading-5 text-[#727a6d]">Five ready-written examples for a fictional everyday essentials brand. No account or credits needed.</p>
+                    <ol className="mt-4 space-y-4">
+                      {[
+                        { headline: "Make room for better days", body: "Meet everyday essentials that fit the moments you love: slow mornings, fresh starts, and a space that feels like you.", cta: "Find your everyday favorites." },
+                        { headline: "A fresh start feels like home", body: "A favorite mug. A soft throw. A little corner of calm. Bring a personal touch to your daily routine with Sunday Supply.", cta: "Explore your next small refresh." },
+                        { headline: "Small details, a little more you", body: "Your space tells a story. Add everyday pieces that make it yours, from the first cup of coffee to the last page of the evening.", cta: "Make yourself at home." },
+                        { headline: "Give your everyday a Sunday feeling", body: "You don't need a special occasion to enjoy your space. Find inspiration for the little rituals that make an ordinary day feel good.", cta: "Discover your Sunday inspiration." },
+                        { headline: "What belongs in your favorite corner?", body: "Start with one thoughtful detail. Build a space around the things you reach for, enjoy, and choose again every day.", cta: "Find a detail to call your own." },
+                      ].map((ad, index) => (
+                        <li key={ad.headline} className="border-t border-[#e8eae3] pt-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#779067]">Sample ad {index + 1}</p>
+                          <h4 className="mt-1 text-sm font-semibold">{ad.headline}</h4>
+                          <p className="mt-2 text-xs leading-5 text-[#60675b]">{ad.body}</p>
+                          <p className="mt-2 text-xs font-semibold text-[#35563c]">{ad.cta}</p>
+                        </li>
+                      ))}
+                    </ol>
+                    <a href="#studio" className="mt-5 inline-flex rounded-full border border-[#dfe3d9] px-4 py-2 text-xs font-semibold text-[#35563c] hover:bg-[#f3f5ed] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#35563c]">Create ads for your own brand ↗</a>
+                  </div>
+                </details></div><div className="mt-8 flex items-end justify-between"><div className="flex gap-2"><span className="h-14 w-14 rounded-full bg-[#d2ddc7]"/><span className="h-14 w-14 rounded-full bg-[#e7d7c5]"/><span className="h-14 w-14 rounded-full bg-[#cbdad4]"/></div><span className="rounded-full bg-white px-3 py-2 text-[10px] font-medium text-[#65705f]">✦ On-brand copy</span></div></div>
               <div className="grid grid-cols-3 gap-2 pt-3"><div className="rounded-xl bg-[#faf9f6] p-3"><div className="text-[10px] text-[#a0a399]">COPY ANGLES</div><div className="mt-1 text-sm font-semibold">5 fresh ideas</div></div><div className="rounded-xl bg-[#faf9f6] p-3"><div className="text-[10px] text-[#a0a399]">AUDIENCE</div><div className="mt-1 text-sm font-semibold">In focus</div></div><div className="rounded-xl bg-[#faf9f6] p-3"><div className="text-[10px] text-[#a0a399]">NEXT UP</div><div className="mt-1 text-sm font-semibold">Ask & learn</div></div></div>
             </div>
             <div className="absolute -bottom-5 -right-3 hidden rounded-2xl border border-black/5 bg-white p-4 shadow-xl shadow-black/5 sm:block"><div className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#9a9e92]">A useful next step</div><div className="mt-2 text-sm font-medium text-[#3e493b]">Find your clearest message</div><div className="mt-1 text-xs text-[#92988c]">Start with what you know</div></div>
@@ -229,7 +255,7 @@ export default function Home() {
               <div className="text-sm font-semibold">Free</div>
               <div className="mt-3 text-4xl font-semibold tracking-[-.05em]">$0<span className="text-sm font-normal tracking-normal text-[#94998e]"> / always</span></div>
               <p className="mt-3 text-sm text-[#80857b]">A lovely place to start.</p>
-              <ul className="mt-6 space-y-3 text-sm text-[#61685d]"><li>✓ 50 generations</li><li>✓ Multiple channels and tones</li><li>✓ Saved campaign history</li></ul>
+              <ul className="mt-6 space-y-3 text-sm text-[#61685d]"><li>✓ 10 generations</li><li>✓ Multiple channels and tones</li><li>✓ Saved campaign history</li></ul>
               <a href="#studio" className="mt-7 block rounded-full border border-[#dfe3d9] px-4 py-3 text-center text-sm font-semibold text-[#506547] hover:bg-[#f7f8f4]">Try the studio</a>
             </div>
             <div className="rounded-[1.5rem] bg-[#35563c] p-6 text-white shadow-xl shadow-[#35563c]/15">

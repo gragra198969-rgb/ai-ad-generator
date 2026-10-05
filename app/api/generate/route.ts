@@ -18,8 +18,8 @@ export async function POST(req: Request) {
   }
   
   await sql`
-  INSERT INTO users (clerk_user_id)
-  VALUES (${userId})
+  INSERT INTO users (clerk_user_id, ads_used, ads_limit)
+  VALUES (${userId}, 0, 10)
   ON CONFLICT (clerk_user_id)
   DO NOTHING
 `;
@@ -41,7 +41,7 @@ if (!user) {
 if (user.ads_used >= user.ads_limit) {
   return Response.json(
     {
-      result: "You have used all 50 free ads this month."
+      result: "You have used all your available generations."
     },
     {
       status: 403
