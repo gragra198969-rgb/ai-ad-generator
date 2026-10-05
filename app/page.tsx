@@ -355,35 +355,31 @@ function AdStudio() {
             <a className="transition hover:text-[#35563c]" href="#surveys">Surveys</a>
             <a className="transition hover:text-[#35563c]" href="#how-it-works">How it works</a>
             <a className="transition hover:text-[#35563c]" href="#pricing">Pricing</a>
-            <button type="button" onClick={() => setTutorialOpen(true)} className="transition hover:text-[#35563c]">Tutorial</button>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <button type="button" onClick={() => setTutorialOpen(true)} aria-haspopup="dialog" className="rounded-full border border-[#dfe3d9] bg-white/70 px-3 py-2 text-xs font-semibold text-[#506547] transition hover:bg-white sm:text-sm">Tutorial</button>
             <button onClick={() => setDarkMode(!darkMode)} className={`rounded-full px-3 py-2 text-xs font-medium transition ${darkMode ? "text-white/70 hover:bg-white/10" : "text-[#5f675b] hover:bg-black/5"}`} aria-label="Toggle color theme">{darkMode ? "☀ Light" : "◐ Theme"}</button>
-            {isLoaded && isSignedIn ? <><a href="/dashboard" className="hidden rounded-full px-3 py-2 text-sm text-[#687064] sm:inline">My workspace</a><UserButton /></> : <><SignInButton mode="modal"><button className="rounded-full px-3 py-2 text-sm font-medium text-[#596156] transition hover:bg-black/5">Sign in</button></SignInButton><SignUpButton mode="modal"><button className="rounded-full bg-[#35563c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Get started</button></SignUpButton></>}
-          </div>
-        </nav>
-      </header>
-
-      {tutorialOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" onClick={() => setTutorialOpen(false)}>
-        <div className="max-h-[88vh] w-full max-w-2xl overflow-auto rounded-[1.75rem] bg-white p-6 text-[#20231f] shadow-2xl sm:p-8" onClick={(event) => event.stopPropagation()}>
+            {isLoaded && isSignedIn ? <><a href="/dashboard" className="hidden rounded-full px-3 py-2 text-sm text-[#687064] sm:inline">My workspace</a><UserButton /></> : <><SignInButton mode="modal"><button className="rounded-full px-3 py-2 text-sm font-medium text-[#596156] transition hover:bg-black/5">Sign in</button></SignInButton><SignUpButton mode="modal"><button className="rounded-full bg-[#35563c] px-4 py-2.5 text-sm font-semibold text-white tr{tutorialOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" onClick={() => setTutorialOpen(false)}>
+        <div className="max-h-[88vh] w-full max-w-xl overflow-auto rounded-[1.75rem] bg-white p-6 text-[#20231f] shadow-2xl sm:p-8" onClick={(event) => event.stopPropagation()}>
           <div className="flex items-start justify-between gap-4">
-            <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#779067]">Quick tutorial</p><h2 id="tutorial-title" className="mt-2 text-3xl font-semibold tracking-tight">Create your first ad in minutes</h2><p className="mt-2 text-sm leading-6 text-[#72796d]">Follow these steps from top to bottom. You can come back to this tutorial anytime.</p></div>
+            <div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#779067]">Quick tutorial · 1 minute</p><h2 id="tutorial-title" className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Create and save your first ad</h2></div>
             <button type="button" onClick={() => setTutorialOpen(false)} aria-label="Close tutorial" className="rounded-full border border-[#e1e5dc] px-3 py-2 text-sm font-semibold text-[#65705f] hover:bg-[#f5f7f2]">✕</button>
           </div>
-          <ol className="mt-7 space-y-4">
+          <ol className="mt-6 space-y-3">
             {[
-              ["1", "Sign in or create an account", "Your account keeps track of your generations and saved campaign history."],
-              ["2", "Tell us what you’re advertising", "Enter your brand, product or service, target audience, main benefit, website, tone, and the type of ad you want."],
-              ["3", "Create your ad ideas", "Tap “Create my ad ideas.” The studio will generate several different marketing angles for you to review."],
-              ["4", "Add a campaign picture", "Use “Generate picture” when you want an AI-created visual to go with the campaign. Picture generation uses 1 credit."],
-              ["5", "Review before posting", "Read the headline, body copy, CTA, and picture. Make any changes you need before using the advertisement publicly."],
-              ["6", "Copy or share your ad", "Use Copy ad or choose Facebook, Instagram, TikTok, X, LinkedIn, or Nextdoor. We’ll copy the ad and open the platform so you can review it before posting."],
-              ["7", "Find your work later", "Open My workspace to see your saved campaign history and continue working from there."],
-            ].map(([number, title, copy]) => <li key={number} className="flex gap-4 rounded-2xl border border-[#e7ebe2] bg-[#fafbf8] p-4"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#35563c] text-xs font-semibold text-white">{number}</span><div><h3 className="text-sm font-semibold text-[#344332]">{title}</h3><p className="mt-1 text-xs leading-5 text-[#72796d]">{copy}</p></div></li>)}
+              ["1", "Describe your offer", "Enter your product or service and target audience. Add your brand name or key benefit for more tailored ideas."],
+              ["2", "Choose your style", "Pick an ad channel, voice, and how many ideas you want."],
+              ["3", "Create and refine", "Choose “Create my ad ideas,” review the results, and edit them to fit your business."],
+              ["4", "Keep what works", "Copy or share an idea, or save the campaign in My workspace to continue later."],
+            ].map(([number, title, copy]) => <li key={number} className="flex gap-3 rounded-xl border border-[#e7ebe2] bg-[#fafbf8] p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#35563c] text-xs font-semibold text-white">{number}</span><div><h3 className="text-sm font-semibold text-[#344332]">{title}</h3><p className="mt-1 text-xs leading-5 text-[#72796d]">{copy}</p></div></li>)}
           </ol>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <button type="button" onClick={() => { setTutorialOpen(false); document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" }); }} className="rounded-full bg-[#35563c] px-5 py-3 text-sm font-semibold text-white hover:bg-[#28452f]">Start creating an ad ↗</button>
-            <button type="button" onClick={() => setTutorialOpen(false)} className="rounded-full border border-[#dfe3d9] px-5 py-3 text-sm font-semibold text-[#52664a] hover:bg-[#f5f7f2]">Close tutorial</button>
+          <p className="mt-5 rounded-xl bg-[#f0f3e9] px-4 py-3 text-xs leading-5 text-[#65705f]">Generations use account credits. Review and edit each ad before publishing.</p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={() => { setTutorialOpen(false); document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" }); }} className="rounded-full bg-[#35563c] px-5 py-3 text-sm font-semibold text-white hover:bg-[#28452f]">Go to the ad studio ↗</button>
+            <button type="button" onClick={() => setTutorialOpen(false)} className="rounded-full border border-[#dfe3d9] px-5 py-3 text-sm font-semibold text-[#52664a] hover:bg-[#f5f7f2]">Close</button>
+          </div>
+        </div>
+      </div>}xt-sm font-semibold text-[#52664a] hover:bg-[#f5f7f2]">Close tutorial</button>
           </div>
         </div>
       </div>}
