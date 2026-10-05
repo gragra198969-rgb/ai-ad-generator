@@ -160,10 +160,13 @@ function AdStudio() {
 
   function editAd(index: number, field: "headline" | "body" | "cta", value: string) {
     const source = parsedAds()[index];
-    setAdEdits((current) => ({
-      ...current,
-      [index]: { headline: source.headline, body: source.body, cta: source.cta, ...current[index], [field]: value },
-    }));
+    setAdEdits((current) => {
+      const previous = current[index] ?? source;
+      return {
+        ...current,
+        [index]: { ...previous, [field]: value },
+      };
+    });
   }
 
   function adText(index: number) {
