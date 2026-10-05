@@ -338,26 +338,38 @@ function AdStudio() {
                   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={() => copyAd()} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
                   <div className="mt-5 grid gap-4">
                     {parsedAds().map((ad, index) => (
-                      <article key={`${ad.headline}-${index}`} className="overflow-hidden rounded-2xl border border-[#e3e8de] bg-[#fbfcf9]">
-                        <div className="grid sm:grid-cols-[180px_1fr]">
-                          <div className="relative min-h-40 overflow-hidden bg-gradient-to-br from-[#dfe9d6] via-[#f1eadf] to-[#d8e6e1]">
-                            {generatedImage ? <Image src={generatedImage} alt="" fill unoptimized className="object-cover" /> : <div className="flex h-full min-h-40 items-end p-4"><span className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</span></div>}
+                      <article key={`${ad.headline}-${index}`} className="overflow-hidden rounded-[1.5rem] border border-[#dde4d7] bg-white shadow-[0_16px_40px_-30px_rgba(40,55,36,.45)]">
+                        <div className="flex items-center justify-between gap-3 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-[#30402e]">{brandName || product}</p>
+                            <p className="text-[10px] uppercase tracking-[.14em] text-[#899383]">{adType} · sponsored preview</p>
                           </div>
-                          <div className="p-5">
-                            <div className="flex items-start justify-between gap-3">
-                              <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">{brandName || product} · {adType}</p><h5 className="mt-1 text-xl font-semibold tracking-tight text-[#30402e]">{ad.headline}</h5></div>
-                              <button type="button" onClick={() => copyAd(ad.raw)} className="shrink-0 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy</button>
+                          <span className="rounded-full bg-[#f0f4ec] px-2.5 py-1 text-[10px] font-semibold text-[#607458]">Ad preview</span>
+                        </div>
+                        <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-[#dfe9d6] via-[#f1eadf] to-[#d8e6e1] sm:aspect-[16/9]">
+                          {generatedImage ? <Image src={generatedImage} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
+                        </div>
+                        <div className="p-5 sm:p-6">
+                          <h5 className="text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b]">{ad.headline}</h5>
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#596354]">{ad.body}</p>
+                          <div className="mt-5 flex flex-col gap-3 border-t border-[#e7ebe2] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              {safeWebsite && <p className="truncate text-[10px] uppercase tracking-[.12em] text-[#92998d]">{safeWebsite.replace(/^https?:\\/\\//i, "")}</p>}
+                              {ad.cta && <p className="mt-1 text-sm font-semibold text-[#35563c]">{ad.cta}</p>}
                             </div>
-                            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#596354]">{ad.body}</p>
-                            {ad.cta && <p className="mt-4 text-sm font-semibold text-[#35563c]">{ad.cta}</p>}
-                            <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e7ebe2] pt-4">
-                              <button type="button" onClick={() => shareAd("facebook", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>
-                              <button type="button" onClick={() => shareAd("instagram", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Instagram ↗</button>
-                              <button type="button" onClick={() => shareAd("tiktok", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">TikTok ↗</button>
-                              <button type="button" onClick={() => shareAd("twitter", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">X ↗</button>
-                              <button type="button" onClick={() => shareAd("linkedin", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">LinkedIn ↗</button>
-                              <button type="button" onClick={() => shareAd("nextdoor", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Nextdoor ↗</button>
-                            </div>
+                            {safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg bg-[#35563c] px-5 py-2.5 text-center text-xs font-semibold text-white hover:bg-[#28452f]">Learn more ↗</a>}
+                          </div>
+                        </div>
+                        <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => copyAd(ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy ad</button>
+                            <span className="mr-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#9aa094]">Post to</span>
+                            <button type="button" onClick={() => shareAd("facebook", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>
+                            <button type="button" onClick={() => shareAd("instagram", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Instagram ↗</button>
+                            <button type="button" onClick={() => shareAd("tiktok", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">TikTok ↗</button>
+                            <button type="button" onClick={() => shareAd("twitter", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">X ↗</button>
+                            <button type="button" onClick={() => shareAd("linkedin", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">LinkedIn ↗</button>
+                            <button type="button" onClick={() => shareAd("nextdoor", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Nextdoor ↗</button>
                           </div>
                         </div>
                       </article>
