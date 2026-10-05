@@ -143,7 +143,7 @@ function AdStudio() {
     }
   }
 
-  async function shareAd(platform: "facebook" | "tiktok" | "instagram" | "twitter" | "linkedin") {
+  async function shareAd(platform: "facebook" | "tiktok" | "instagram" | "twitter" | "linkedin" | "nextdoor") {
     if (!result) return;
 
     const text = safeWebsite ? `${result}\n\n${safeWebsite}` : result;
@@ -162,6 +162,7 @@ function AdStudio() {
       instagram: "https://www.instagram.com/",
       twitter: `https://twitter.com/intent/tweet?text=${encodedText}`,
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+      nextdoor: "https://nextdoor.com/",
     };
 
     window.open(shareUrls[platform], "_blank", "noopener,noreferrer");
@@ -335,6 +336,7 @@ function AdStudio() {
                       <button type="button" onClick={() => shareAd("instagram")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Instagram ↗</button>
                       <button type="button" onClick={() => shareAd("twitter")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">X ↗</button>
                       <button type="button" onClick={() => shareAd("linkedin")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">LinkedIn ↗</button>
+                      <button type="button" onClick={() => shareAd("nextdoor")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Nextdoor ↗</button>
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#ecefe8] pt-4"><span className="text-xs text-[#7b8277]">{audience ? `Made for ${audience}` : "Tailored to your audience"}</span>{safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="rounded-full bg-[#35563c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#28452f]">Visit website ↗</a>}</div>
