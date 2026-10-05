@@ -341,9 +341,6 @@ export default function Home() {
       <section className="px-5 py-20 lg:px-8"><div className="mx-auto max-w-5xl rounded-[2rem] bg-[#e9eee2] px-6 py-12 text-center sm:px-12 sm:py-16"><span className="text-xs font-semibold uppercase tracking-[.18em] text-[#779067]">Your next good idea starts here</span><h2 className="mx-auto mt-4 max-w-2xl text-4xl font-semibold tracking-[-.045em] text-[#2b3729] sm:text-5xl">Make something people <span className="font-serif italic font-normal text-[#668154]">want to hear.</span></h2><p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-[#72796d]">Create your first ad concept today. No blank-page stare required.</p><a href="#studio" className="mt-7 inline-flex rounded-full bg-[#35563c] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Let’s make a start ↗</a></div></section>
 
       <footer className={`border-t px-5 py-8 ${darkMode ? "border-white/10" : "border-black/5"}`}><div className="mx-auto flex max-w-7xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><a href="#top" className="font-semibold">adsurvey<span className="text-[#668154]">.studio</span></a><div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-[#878c82]"><a href="/privacy" className="hover:text-[#35563c]">Privacy</a><a href="/terms" className="hover:text-[#35563c]">Terms</a><a href="/copyright" className="hover:text-[#35563c]">Copyright</a><a href="/faq" className="hover:text-[#35563c]">FAQ</a></div><span className="text-xs text-[#a0a399]">© {new Date().getFullYear()} AdSurvey Studio</span></div></footer>
-      {/* temporary-greg-message:start */}
-      <p className="px-5 pb-8 text-center text-sm">hey Mike this is from Greg.</p>
-      {/* temporary-greg-message:end */}
     </main>
   );
 }
