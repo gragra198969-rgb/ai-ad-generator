@@ -143,6 +143,31 @@ function AdStudio() {
     }
   }
 
+  async function shareAd(platform: "facebook" | "tiktok" | "instagram" | "twitter" | "linkedin") {
+    if (!result) return;
+
+    const text = safeWebsite ? `${result}\n\n${safeWebsite}` : result;
+    const encodedText = encodeURIComponent(text);
+    const encodedUrl = encodeURIComponent(safeWebsite || window.location.href);
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Continue to the selected platform even if clipboard access is unavailable.
+    }
+
+    const shareUrls: Record<typeof platform, string> = {
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+      tiktok: "https://www.tiktok.com/upload",
+      instagram: "https://www.instagram.com/",
+      twitter: `https://twitter.com/intent/tweet?text=${encodedText}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    };
+
+    window.open(shareUrls[platform], "_blank", "noopener,noreferrer");
+    setMessage(`Ad copied. ${platform === "twitter" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1)} opened so you can review and post it.`);
+  }
+
   async function upgrade() {
     setMessage("");
     if (!isSignedIn) {
@@ -301,6 +326,17 @@ function AdStudio() {
                 <div className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={copyAds} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
                   <pre className="mt-5 max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-2xl bg-[#f7f9f4] p-4 font-sans text-sm leading-6 text-[#4f5a4b]">{result}</pre>
+                  <div className="mt-4 border-t border-[#ecefe8] pt-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Share or post your ad</p>
+                    <p className="mt-1 text-xs text-[#7b8277]">We’ll copy your ad and open the platform. Review it before publishing.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => shareAd("facebook")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Facebook ↗</button>
+                      <button type="button" onClick={() => shareAd("tiktok")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">TikTok ↗</button>
+                      <button type="button" onClick={() => shareAd("instagram")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Instagram ↗</button>
+                      <button type="button" onClick={() => shareAd("twitter")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">X ↗</button>
+                      <button type="button" onClick={() => shareAd("linkedin")} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">LinkedIn ↗</button>
+                    </div>
+                  </div>
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#ecefe8] pt-4"><span className="text-xs text-[#7b8277]">{audience ? `Made for ${audience}` : "Tailored to your audience"}</span>{safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="rounded-full bg-[#35563c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#28452f]">Visit website ↗</a>}</div>
                 </div>
               </div>}
