@@ -17,7 +17,7 @@ PDF export, survey creation/response collection, and a separate projects system 
 
 ## Stack and project map
 
-Next.js 16.2.9 (App Router), React 19.2.4, TypeScript, Tailwind CSS 4, Clerk, `@neondatabase/serverless`, OpenAI SDK, and Stripe SDK. PayPal uses server-side REST requests.
+Next.js 16.3.8 (App Router), React 19.2.4, TypeScript, Tailwind CSS 4, Clerk, `@neondatabase/serverless`, OpenAI SDK, and Stripe SDK. PayPal uses server-side REST requests.
 
 | Location | Purpose |
 | --- | --- |
@@ -117,7 +117,7 @@ There is currently **no `STRIPE_PRICE_ID` environment variable**. The checkout r
 
 ## Database requirements
 
-The repository has no migration command or committed schema for the core tables. `app/lib/db.ts` passes `DATABASE_URL` to the Neon serverless driver.
+The repository has no migration command for the core tables. On first saved-ad access or text generation, `ensureAdOwnership()` adds the nullable `ads.clerk_user_id` column and owner index if absent. Historical rows remain unassigned and are hidden from all customer accounts; do not bulk-assign them without verified ownership. `app/lib/db.ts` passes `DATABASE_URL` to the Neon serverless driver.
 
 For a **new, empty development database**, run this minimal schema in the Neon SQL editor. It is derived from the current queries; it is not a migration for an existing database. Inspect existing tables before making changes.
 
@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS ads (
   id SERIAL PRIMARY KEY,
+  clerk_user_id TEXT,
   brand_name TEXT,
   product TEXT,
   audience TEXT,
@@ -145,6 +146,8 @@ CREATE TABLE IF NOT EXISTS ads (
 
 The unique/primary key on `users.clerk_user_id` is required for billing and generation `ON CONFLICT` statements. The generation route explicitly inserts 0 used and a 10-generation limit for new accounts, so existing databases with an older default also give new users 10 credits. Existing account balances are preserved. `ads.id` supports ordering/deletion and `created_at` is displayed by the dashboard.
 
+Security helpers create `request_limits` (per-account/action throttles) and `billing_credit_events` (atomic payment receipts) at runtime. The database role needs CREATE TABLE/INDEX and ALTER on `ads`, or an administrator must pre-provision the objects from `app/lib/ad-security.ts` and `app/lib/billing-security.ts`. If migration fails, saved-ad access fails closed.
+
 PayPal creates these additional objects at runtime:
 
 - `paypal_subscriptions`: subscription ID primary key, Clerk user ID, plan ID, approval URL, status, and update timestamp.
@@ -159,7 +162,7 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 `middleware.ts` installs `clerkMiddleware()`; it does not globally require sign-in. The text-generation, account, saved-ad, and checkout handlers explicitly check `auth()` and return HTTP 401 without a user. Payment webhooks authenticate using provider signatures instead of a Clerk session. There is no Clerk webhook that provisions database users: text generation inserts a user on demand, billing can upsert one, and `GET /api/user` returns a default 0/10 allowance if none exists.
 
-`POST /api/generate` accepts `product`, `audience`, `benefit`, `website`, `tone`, `adType`, `adCount`, and `brandName`. Product and audience are required. It requests copy from OpenAI Chat Completions using `gpt-4.1-mini`, bounds the requested count to 1–20 (default 5), increments usage, inserts the generated batch into `ads`, and returns `{ result }`.
+`POST /api/generate` accepts `product`, `audience`, `benefit`, `website`, `tone`, `adType`, `adCount`, and `brandName`. Product and audience are required. The route validates text lengths, HTTP(S) website URLs, channels, tones, and integer counts of 1–20; JSON bodies are limited to 16 KiB. It requests copy from OpenAI Chat Completions using `gpt-4.1-mini`, reserves one credit atomically (default 5 ideas), inserts the generated batch into `ads` with the authenticated Clerk user ID, and returns `{ result }`.
 
 **One text generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. Each picture also consumes one credit. Free users default to 10 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
 
@@ -177,7 +180,7 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 Checkout creates a hosted subscription session with the Clerk ID in `client_reference_id` and subscription metadata. Success returns to `/dashboard?success=true`; cancellation returns to `/?canceled=true`. Redirects alone do not update credits.
 
-The signature-verified webhook grants 1,000/reset usage on checkout completion, resets to 1,000 on a paid invoice using subscription metadata, and resets to 10 on subscription deletion. Payment failures and subscription updates are not handled.
+The signature-verified webhook grants/resets 1,000 generations only on a paid invoice with a positive amount paid and Clerk subscription metadata. Checkout completion alone grants no credits. Invoice IDs deduplicate initial/renewal grants atomically with the balance update. Subscription deletion lowers the allowance to 10 without resetting usage. Database failures return HTTP 500 for retries. Payment failures and subscription updates are not handled; zero-dollar/trial invoices do not grant Pro credits.
 
 For local testing with the Stripe CLI installed/authenticated:
 
@@ -204,7 +207,7 @@ PayPal is a separate subscription/payment provider. PayPal receipts settle to th
 
 Checkout attaches the Clerk ID as `custom_id`, rejects accounts whose allowance is already at least 1,000, and reuses pending approval URLs for up to 30 minutes. Return and cancellation pages are `/paypal/return` and `/paypal/cancel`; neither page grants Pro.
 
-The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale grants/resets 1,000 generations. Cancellation, suspension, or expiry resets the user to 10 when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
+The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale on an active subscription grants/resets 1,000 generations, atomically deduplicated by sale ID with the balance change. Cancellation, suspension, or expiry lowers the allowance to 10 without resetting usage when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
 
 For local webhook testing, expose the local server through a public HTTPS tunnel and register that URL with the Sandbox app, or use a Sandbox-configured preview deployment. Set `NEXT_PUBLIC_URL` to the reachable app origin and use the webhook ID for that exact registered endpoint.
 
@@ -255,10 +258,30 @@ For an end-to-end check, sign in with a test user, generate a batch, confirm usa
 
 These are behaviors of the current code, not setup options:
 
-- **Saved-ad ownership:** generation does not store a Clerk user ID in `ads`; listing returns the latest 50 rows globally, and deletion filters only by ad ID. Any signed-in user can access/delete shared records. Owner-scoped persistence and authorization are needed for private customer work.
-- **Image lifecycle:** pictures are not persisted. Download before navigating away. Image requests reserve a credit atomically, but a process termination can interrupt the refund; billing resets concurrent with refunds can also affect accounting. There is no separate per-minute rate limit.
-- **Credit accounting:** allowance checks, usage increments, and ad inserts are separate operations. Concurrent requests can exceed a limit, and a save failure after the increment can still consume a credit.
-- **Billing lifecycle:** Stripe has no event deduplication and checkout-completion database errors are logged but acknowledged. Replayed events can reset usage. PayPal tracks processed events, but its event processing and allowance updates are not one transaction.
-- **Multiple subscriptions:** Stripe checkout does not guard against an existing Pro subscription. Both providers write the same allowance, with no combined subscription reconciliation; a cancellation from one can downgrade an account still paying through the other. No in-app billing portal or subscription-cancellation API exists.
+- **Historical ads:** pre-security-update ads with no verified Clerk owner are retained in the database but hidden. New ads are owner-scoped for listing and deletion; requests for another owner’s ad return 404.
+- **Image lifecycle:** pictures are not persisted. Download before navigating away. Image requests reserve a credit atomically, but a process termination can interrupt the refund; billing resets concurrent with refunds can also affect accounting. Text and picture generation share a database-backed limit of five requests per account per minute; checkout has a separate three-per-minute limit.
+- **Credit accounting:** text and image requests reserve credits with a conditional atomic update and attempt refunds on failure. Process termination and a billing reset racing with a refund still need a durable per-generation ledger; these protections are not a full accounting reconciliation system.
+- **Billing lifecycle:** payment receipts and credit changes are atomic and duplicate grants are ignored. PayPal subscription-status bookkeeping is separate from the credit transaction. Out-of-order events and combined subscription reconciliation remain follow-up work.
+- **Multiple subscriptions:** Both checkout routes reject accounts already showing Pro access, but concurrently opened Stripe checkout sessions can still create multiple subscriptions. Both providers write the same allowance, with no combined subscription reconciliation; a cancellation from one can downgrade an account still paying through the other. No in-app billing portal or subscription-cancellation API exists.
 - **Allowance display:** the dashboard checks `creditsLeft > 1000` for its Pro label, so a normal 1,000-credit Pro account can be labeled Free. Use account values and provider records to verify billing rather than that label.
 - **Feature scope:** history retrieval is limited to 50 records; surveys and PDF export remain unimplemented. Free monthly resets are not scheduled.
+
+
+## Security verification
+
+Run `npm run test:security` for isolated PostgreSQL-backed tests of account isolation,
+unauthenticated access, cross-origin writes, input bounds, concurrent credit reservations,
+refunds, rate limits, and payment-event replay/rollback. Tests use PGlite and mocked
+identity/AI boundaries and never contact production services.
+
+`npm run lint`, `npx tsc --noEmit`, and `npm run build` validate the application.
+Run `npm audit --omit=dev` for production dependency advisories. Development-tool
+advisories must be assessed separately; never blindly downgrade Next.js with audit force fixes.
+
+Browser headers enforce no framing, no MIME sniffing, restricted device permissions,
+a referrer policy, and production HSTS. The CSP currently restricts framing, objects,
+and base URLs; it is not a full script allowlist. API responses use private/no-store.
+Mutation routes reject cross-origin browser requests and still verify Clerk identity.
+Use production Clerk keys for the public domain and review Clerk bot/sign-up protections
+and Vercel firewall settings in their dashboards. These account settings and live payment
+behavior are not proven by a source-code test or successful build.

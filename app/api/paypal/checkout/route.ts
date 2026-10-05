@@ -1,8 +1,10 @@
+import { allowRequest } from "@/app/lib/ad-security";
+import { assertSameOrigin, RequestError } from "@/app/lib/request-security";
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/app/lib/db";
 import { getPayPalAccessToken, PAYPAL_API_BASE } from "@/app/lib/paypal";
 
-export async function POST() {
+export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Sign in to subscribe." }, { status: 401 });
 
@@ -10,6 +12,8 @@ export async function POST() {
   if (!origin) return Response.json({ error: "Checkout is not configured." }, { status: 503 });
 
   try {
+    assertSameOrigin(req);
+    if (!await allowRequest(userId, "checkout", 3)) return Response.json({ error: "Please wait a minute before trying checkout again." }, { status: 429, headers: { "Retry-After": "60" } });
     const [account] = await sql`
       SELECT ads_limit FROM users WHERE clerk_user_id = ${userId} LIMIT 1
     `;
@@ -105,8 +109,8 @@ export async function POST() {
   } catch (error) {
     console.error("PayPal checkout failed:", error instanceof Error ? error.message : "Unknown error");
     return Response.json(
-      { error: error instanceof Error && error.message.includes("not configured") ? error.message : "PayPal checkout is temporarily unavailable." },
-      { status: 503 }
+      { error: error instanceof RequestError ? error.message : "PayPal checkout is temporarily unavailable." },
+      { status: error instanceof RequestError ? error.status : 503 }
     );
   }
 }

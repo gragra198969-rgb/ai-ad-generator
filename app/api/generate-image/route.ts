@@ -2,6 +2,9 @@ import OpenAI from "openai";
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/app/lib/db";
 
+import { allowRequest } from "@/app/lib/ad-security";
+import { assertSameOrigin, readJsonObject, RequestError } from "@/app/lib/request-security";
+
 export const maxDuration = 180;
 
 export async function POST(req: Request) {
@@ -12,11 +15,12 @@ export async function POST(req: Request) {
 
   let input: Record<string, unknown>;
   try {
-    const body: unknown = await req.json();
+    assertSameOrigin(req);
+    const body: unknown = await readJsonObject(req);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
     input = body as Record<string, unknown>;
-  } catch {
-    return Response.json({ error: "Please provide valid product details." }, { status: 400 });
+  } catch (error) {
+    return Response.json({ error: error instanceof RequestError ? error.message : "Please provide valid product details." }, { status: error instanceof RequestError ? error.status : 400 });
   }
 
   const fields = ["product", "audience", "benefit", "brandName", "adType", "tone"] as const;
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
 
   let reserved = false;
   try {
+    if (!await allowRequest(userId, "generation", 5)) return Response.json({ error: "Please wait a minute before generating again." }, { status: 429, headers: { "Retry-After": "60" } });
     await sql`
       INSERT INTO users (clerk_user_id, ads_used, ads_limit)
       VALUES (${userId}, 0, 10)

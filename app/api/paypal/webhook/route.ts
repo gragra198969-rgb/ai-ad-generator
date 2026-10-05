@@ -1,3 +1,4 @@
+import { applyCreditEvent } from "@/app/lib/billing-security";
 import { sql } from "@/app/lib/db";
 import {
   getPayPalAccessToken,
@@ -17,6 +18,9 @@ type PayPalEvent = {
 export async function POST(request: Request) {
   let eventId: string | undefined;
   let event: PayPalEvent;
+  if (!["paypal-auth-algo", "paypal-cert-url", "paypal-transmission-id", "paypal-transmission-sig", "paypal-transmission-time"].every((header) => request.headers.get(header))) {
+    return Response.json({ error: "Invalid webhook signature." }, { status: 400 });
+  }
   try {
     event = (await request.json()) as PayPalEvent;
     const token = await getPayPalAccessToken();
@@ -85,21 +89,15 @@ export async function POST(request: Request) {
           ON CONFLICT (subscription_id) DO UPDATE
           SET status = EXCLUDED.status, updated_at = NOW()
         `;
-        await sql`
-          INSERT INTO users (clerk_user_id, ads_used, ads_limit)
-          VALUES (${userId}, 0, 1000)
-          ON CONFLICT (clerk_user_id)
-          DO UPDATE SET ads_used = 0, ads_limit = 1000
-        `;
+        if (subscription.status === "ACTIVE" && event.resource?.id) {
+          await applyCreditEvent("paypal", `sale:${event.resource.id}`, userId, true);
+        }
       } else if (["CANCELLED", "SUSPENDED", "EXPIRED"].includes(subscription.status)) {
         await sql`
           UPDATE paypal_subscriptions SET status = ${subscription.status}, updated_at = NOW()
           WHERE subscription_id = ${subscriptionId} AND clerk_user_id = ${userId}
         `;
-        await sql`
-          UPDATE users SET ads_used = 0, ads_limit = 10
-          WHERE clerk_user_id = ${userId}
-        `;
+        await applyCreditEvent("paypal", event.id, userId, false);
       }
     }
 

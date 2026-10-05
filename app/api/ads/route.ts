@@ -1,50 +1,39 @@
 import { auth } from "@clerk/nextjs/server";
 import { sql } from "@/app/lib/db";
+import { ensureAdOwnership } from "@/app/lib/ad-security";
+import { assertSameOrigin, RequestError } from "@/app/lib/request-security";
 
 export async function GET() {
-const { userId } = await auth();
-
-if (!userId) {
-return Response.json(
-{ error: "Unauthorized" },
-{ status: 401 }
-);
-}
-
-const ads = await sql`     SELECT *
-    FROM ads
-    ORDER BY id DESC
-    LIMIT 50
-  `;
-
-return Response.json(ads);
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await ensureAdOwnership();
+    const ads = await sql`
+      SELECT id, brand_name, product, audience, benefit, website, tone,
+             ad_type, ad_count, generated_ads, created_at
+      FROM ads WHERE clerk_user_id = ${userId} ORDER BY id DESC LIMIT 50
+    `;
+    return Response.json(ads, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    return Response.json({ error: "Saved ads are temporarily unavailable." }, { status: 503 });
+  }
 }
 
 export async function DELETE(req: Request) {
-const { userId } = await auth();
-
-if (!userId) {
-return Response.json(
-{ error: "Unauthorized" },
-{ status: 401 }
-);
-}
-
-const { searchParams } = new URL(req.url);
-const id = searchParams.get("id");
-
-if (!id) {
-return Response.json(
-{ error: "Missing ad id" },
-{ status: 400 }
-);
-}
-
-await sql`     DELETE FROM ads
-    WHERE id = ${id}
-  `;
-
-return Response.json({
-success: true,
-});
+  const { userId } = await auth();
+  if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    assertSameOrigin(req);
+    const id = new URL(req.url).searchParams.get("id");
+    if (!id || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) {
+      return Response.json({ error: "Invalid ad id." }, { status: 400 });
+    }
+    await ensureAdOwnership();
+    const deleted = await sql`DELETE FROM ads WHERE id = ${id} AND clerk_user_id = ${userId} RETURNING id`;
+    if (!deleted.length) return Response.json({ error: "Ad not found." }, { status: 404 });
+    return Response.json({ success: true });
+  } catch (error) {
+    return Response.json({ error: error instanceof RequestError ? error.message : "Could not delete this ad." },
+      { status: error instanceof RequestError ? error.status : 503 });
+  }
 }

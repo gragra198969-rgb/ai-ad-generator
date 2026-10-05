@@ -1,100 +1,36 @@
-import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { sql } from "@/app/lib/db";
-
-const stripe = new Stripe(
-  process.env.STRIPE_SECRET_KEY!
-);
+import { applyCreditEvent } from "@/app/lib/billing-security";
 
 export async function POST(req: Request) {
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature")!;
-
+  const key = process.env.STRIPE_SECRET_KEY;
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!key || !secret) return Response.json({ error: "Webhook is not configured." }, { status: 503 });
+  const sig = req.headers.get("stripe-signature");
+  if (!sig) return Response.json({ error: "Invalid webhook signature." }, { status: 400 });
+  const stripe = new Stripe(key);
   let event: Stripe.Event;
-
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Invalid webhook signature.";
-    console.error("Webhook Error:", message);
-
-    return NextResponse.json(
-      { error: `Webhook Error: ${message}` },
-      { status: 400 }
-    );
+    event = stripe.webhooks.constructEvent(await req.text(), sig, secret);
+  } catch {
+    return Response.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
-
-  console.log("EVENT TYPE:", event.type);
-
-  if (event.type === "checkout.session.completed") {
-    const session =
-      event.data.object as Stripe.Checkout.Session;
-
-    const clerkUserId =
-      session.client_reference_id;
-
-    if (!clerkUserId) {
-      console.log(
-        "No client_reference_id found in checkout session."
-      );
-
-      return NextResponse.json({
-        received: true,
-      });
+  try {
+    // A completed checkout is not proof of payment. Initial and renewal credits
+    // both come from paid invoices, keyed by invoice ID to prevent double grants.
+    if (event.type === "invoice.paid") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const userId = invoice.parent?.subscription_details?.metadata?.clerk_user_id;
+      if (userId && invoice.status === "paid" && invoice.amount_paid > 0) {
+        await applyCreditEvent("stripe", `invoice:${invoice.id}`, userId, true);
+      }
     }
-
-    try {
-      await sql`
-        INSERT INTO users (clerk_user_id, ads_used, ads_limit)
-        VALUES (${clerkUserId}, 0, 1000)
-        ON CONFLICT (clerk_user_id)
-        DO UPDATE SET ads_used = 0, ads_limit = 1000
-      `;
-
-      console.log(
-        "Upgraded user:",
-        clerkUserId
-      );
-    } catch (dbError) {
-      console.error(
-        "Database update failed:",
-        dbError
-      );
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object as Stripe.Subscription;
+      const userId = subscription.metadata.clerk_user_id;
+      if (userId) await applyCreditEvent("stripe", event.id, userId, false);
     }
+    return Response.json({ received: true });
+  } catch {
+    return Response.json({ error: "Webhook processing failed. Please retry." }, { status: 500 });
   }
-
-  if (event.type === "invoice.paid") {
-    const invoice = event.data.object as Stripe.Invoice;
-    const clerkUserId = invoice.parent?.subscription_details?.metadata?.clerk_user_id;
-
-    if (clerkUserId) {
-      await sql`
-        INSERT INTO users (clerk_user_id, ads_used, ads_limit)
-        VALUES (${clerkUserId}, 0, 1000)
-        ON CONFLICT (clerk_user_id)
-        DO UPDATE SET ads_used = 0, ads_limit = 1000
-      `;
-    }
-  }
-
-  if (event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object as Stripe.Subscription;
-    const clerkUserId = subscription.metadata.clerk_user_id;
-
-    if (clerkUserId) {
-      await sql`
-        UPDATE users
-        SET ads_used = 0, ads_limit = 10
-        WHERE clerk_user_id = ${clerkUserId}
-      `;
-    }
-  }
-
-  return NextResponse.json({
-    received: true,
-  });
 }

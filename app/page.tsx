@@ -14,6 +14,11 @@ type SavedAd = {
 const platforms = ["Instagram", "Facebook", "Google", "TikTok", "LinkedIn", "Email"];
 
 export default function Home() {
+  const { user } = useUser();
+  return <AdStudio key={user?.id ?? "signed-out"} />;
+}
+
+function AdStudio() {
   const { isSignedIn, isLoaded } = useUser();
   const [brandName, setBrandName] = useState("");
   const [product, setProduct] = useState("");
@@ -170,6 +175,8 @@ export default function Home() {
     }
   }
 
+  const safeWebsite = /^https?:\/\//i.test(website.trim()) ? website.trim() : "";
+
   const pageClass = darkMode ? "min-h-screen bg-[#10131b] text-white" : "min-h-screen bg-[#fbfaf8] text-[#20231f]";
 
   return (
@@ -294,7 +301,7 @@ export default function Home() {
                 <div className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={copyAds} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
                   <pre className="mt-5 max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-2xl bg-[#f7f9f4] p-4 font-sans text-sm leading-6 text-[#4f5a4b]">{result}</pre>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#ecefe8] pt-4"><span className="text-xs text-[#7b8277]">{audience ? `Made for ${audience}` : "Tailored to your audience"}</span>{website && <a href={website} target="_blank" rel="noreferrer" className="rounded-full bg-[#35563c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#28452f]">Visit website ↗</a>}</div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#ecefe8] pt-4"><span className="text-xs text-[#7b8277]">{audience ? `Made for ${audience}` : "Tailored to your audience"}</span>{safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="rounded-full bg-[#35563c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#28452f]">Visit website ↗</a>}</div>
                 </div>
               </div>}
             </div>
