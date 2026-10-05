@@ -31,6 +31,14 @@ export default function PrivacyPage() {
         database to provide service functionality.
       </p>
 
+      <h2>Customer surveys</h2>
+      <p>
+        When a business creates a survey, we store each respondent’s selected
+        answer and optional written comment so the business can review feedback
+        privately in its workspace. Respondents do not need an account, and we
+        do not ask for their email address in the survey.
+      </p>
+
       <h2>Contact</h2>
       <p>
         If you have questions about this Privacy Policy, contact us through the

@@ -170,6 +170,7 @@ export default function Dashboard() {
           </a>
           <nav className="flex items-center gap-3 sm:gap-6" aria-label="Workspace navigation">
             <a href="/#studio" className="hidden text-sm font-medium text-[#687064] transition hover:text-[#35563c] sm:inline">Ad studio</a>
+            <a href="/dashboard/surveys" className="hidden text-sm font-medium text-[#687064] transition hover:text-[#35563c] md:inline">Surveys</a>
             <a href="/#pricing" className="hidden text-sm font-medium text-[#687064] transition hover:text-[#35563c] sm:inline">Plans</a>
             <a href="/#studio" className="rounded-full bg-[#35563c] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Create ideas <span aria-hidden="true">↗</span></a>
             <UserButton />

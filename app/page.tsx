@@ -342,7 +342,7 @@ function AdStudio() {
   return (
     <main className={pageClass}>
       <div className="border-b border-black/5 bg-[#f2f4e9] px-4 py-2 text-center text-xs font-medium tracking-wide text-[#475b3d]">
-        Ad ideas today · customer surveys are in development
+        Ad ideas today · customer surveys now available
       </div>
       <header className={`sticky top-0 z-20 border-b backdrop-blur-xl ${darkMode ? "border-white/10 bg-[#10131b]/90" : "border-black/5 bg-[#fbfaf8]/90"}`}>
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8" aria-label="Main navigation">
@@ -395,7 +395,7 @@ function AdStudio() {
           <div>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dbe3d4] bg-white/70 px-3.5 py-2 text-xs font-semibold text-[#527047]"><span className="h-2 w-2 rounded-full bg-[#86a36b]" /> Your campaign ideas, in one workspace</div>
             <h1 className="max-w-2xl text-5xl font-semibold leading-[1.04] tracking-[-.055em] sm:text-6xl lg:text-[4.4rem]">Good marketing starts with <span className="font-serif italic font-normal text-[#668154]">listening.</span></h1>
-            <p className={`mt-6 max-w-xl text-lg leading-8 ${darkMode ? "text-white/65" : "text-[#73776e]"}`}>Create fresh ad copy for your next campaign. Customer surveys are in development, with a preview below.</p>
+            <p className={`mt-6 max-w-xl text-lg leading-8 ${darkMode ? "text-white/65" : "text-[#73776e]"}`}>Create fresh ad copy and gather the customer feedback that helps your next campaign land.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="#studio" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#35563c] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#35563c]/15 transition hover:-translate-y-0.5 hover:bg-[#28452f]">Try the ad studio <span aria-hidden="true">↗</span></a>
               <a href="#surveys" className={`inline-flex items-center justify-center rounded-full border px-6 py-3.5 text-sm font-semibold transition ${darkMode ? "border-white/15 hover:bg-white/5" : "border-[#dfe1d9] bg-white/60 hover:bg-white"}`}>Explore customer surveys</a>
@@ -555,8 +555,32 @@ function AdStudio() {
 
       <section id="surveys" className="scroll-mt-20 bg-[#f0f3e9] px-5 py-20 lg:px-8 lg:py-24">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-2 lg:items-center">
-          <div><span className="inline-flex rounded-full bg-[#e1e9d9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[.13em] text-[#648056]">Coming soon · survey tools</span><h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-.045em] text-[#263326] sm:text-5xl">The best next step? <span className="font-serif italic font-normal text-[#668154]">Ask.</span></h2><p className="mt-5 max-w-xl text-base leading-7 text-[#73796e]">We’re shaping simple customer surveys to pair with your campaign ideas. The preview is illustrative; survey creation and response collection aren’t available yet.</p><div className="mt-8 space-y-4">{[["01", "Start with a useful question", "Keep it short, specific, and easy to answer."], ["02", "Hear what matters to people", "Give customers a clear, simple way to share feedback."], ["03", "Bring the learning back to your ads", "Use what you hear to shape your next message."]].map(([number, title, copy]) => <div key={number} className="flex gap-4"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-[#668154]">{number}</span><div><h3 className="text-sm font-semibold text-[#3c4638]">{title}</h3><p className="mt-1 text-sm text-[#81867b]">{copy}</p></div></div>)}</div></div>
-          <div className="relative mx-auto w-full max-w-lg"><div className="absolute -right-4 -top-4 h-24 w-24 rounded-full border border-[#aebda1]"/><div className="relative rounded-[2rem] bg-white p-6 shadow-[0_25px_75px_-45px_rgba(43,61,39,.35)] sm:p-8"><div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-[.15em] text-[#96a18d]">Illustrative survey preview</span><span className="text-xs text-[#9aa092]">Concept</span></div><h3 className="mt-7 text-2xl font-semibold tracking-tight text-[#2f3a2d]">What would make your next visit even better?</h3><p className="mt-2 text-sm text-[#8c9187]">A little context helps us improve.</p><div className="mt-6 space-y-2.5">{["More options to choose from", "A smoother checkout", "Helpful tips along the way"].map((choice, index) => <div key={choice} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${index === 1 ? "border-[#9caf8c] bg-[#f4f7f0] text-[#506547]" : "border-[#eeefe9] text-[#6f756c]"}`}><span className={`flex h-4 w-4 items-center justify-center rounded-full border ${index === 1 ? "border-[#739064]" : "border-[#d7dacf]"}`}>{index === 1 && <i className="h-2 w-2 rounded-full bg-[#739064]"/>}</span>{choice}</div>)}</div><div className="mt-5 flex items-center justify-between"><span className="text-xs text-[#a1a59c]">Survey tools are in development</span><span className="rounded-full bg-[#e7ede1] px-4 py-2 text-xs font-semibold text-[#52664a]">Coming soon</span></div></div><div className="absolute -bottom-5 -left-4 rounded-2xl border border-black/5 bg-white px-4 py-3 shadow-lg"><div className="text-[10px] uppercase tracking-[.14em] text-[#a0a399]">A thoughtful feedback loop</div><div className="mt-1 text-sm font-semibold text-[#52664a]">Listen · learn · create</div></div></div>
+          <div>
+            <span className="inline-flex rounded-full bg-[#e1e9d9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[.13em] text-[#648056]">Customer feedback · now available</span>
+            <h2 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-.045em] text-[#263326] sm:text-5xl">The best next step? <span className="font-serif italic font-normal text-[#668154]">Ask.</span></h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#73796e]">Create a short survey, share it with customers, and collect answers with optional comments. Replies go to your private workspace, where you can review what customers said.</p>
+            <div className="mt-8 space-y-4">
+              {[
+                ["01", "Ask one clear question", "Choose 2–5 simple answers customers can select."],
+                ["02", "Invite honest feedback", "Give people an optional space to add a comment."],
+                ["03", "Read every response", "View the answers privately in your workspace."]
+              ].map(([number, title, copy]) => <div key={number} className="flex gap-4"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-[#668154]">{number}</span><div><h3 className="text-sm font-semibold text-[#3c4638]">{title}</h3><p className="mt-1 text-sm text-[#81867b]">{copy}</p></div></div>)}
+            </div>
+            <a href="/dashboard/surveys" className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#35563c] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#35563c]/15 transition hover:-translate-y-0.5 hover:bg-[#28452f]">Create a survey <span aria-hidden="true">↗</span></a>
+            <p className="mt-3 text-xs text-[#81867b]">Responses are saved in your workspace. Email alerts aren’t set up yet.</p>
+          </div>
+          <div className="relative mx-auto w-full max-w-lg">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full border border-[#aebda1]"/>
+            <div className="relative rounded-[2rem] bg-white p-6 shadow-[0_25px_75px_-45px_rgba(43,61,39,.35)] sm:p-8">
+              <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-[.15em] text-[#96a18d]">Example survey</span><span className="text-xs text-[#9aa092]">Customer feedback</span></div>
+              <h3 className="mt-7 text-2xl font-semibold tracking-tight text-[#2f3a2d]">What would make your next visit even better?</h3>
+              <p className="mt-2 text-sm text-[#8c9187]">Pick one answer and leave a comment if you’d like.</p>
+              <div className="mt-6 space-y-2.5">{["More options to choose from", "A smoother checkout", "Helpful tips along the way"].map((choice) => <div key={choice} className="flex items-center gap-3 rounded-xl border border-[#eeefe9] px-4 py-3 text-sm text-[#6f756c]"><span className="h-4 w-4 rounded-full border border-[#d7dacf]"/>{choice}</div>)}</div>
+              <div className="mt-5 rounded-xl border border-[#e9ebe4] px-4 py-3 text-sm text-[#a1a59c]">Optional comment</div>
+              <div className="mt-5 flex items-center justify-between"><span className="text-xs text-[#a1a59c]">Private response inbox</span><a href="/dashboard/surveys" className="rounded-full bg-[#e7ede1] px-4 py-2 text-xs font-semibold text-[#52664a] hover:bg-[#dce6d5]">Set up yours ↗</a></div>
+            </div>
+            <div className="absolute -bottom-5 -left-4 rounded-2xl border border-black/5 bg-white px-4 py-3 shadow-lg"><div className="text-[10px] uppercase tracking-[.14em] text-[#a0a399]">A thoughtful feedback loop</div><div className="mt-1 text-sm font-semibold text-[#52664a]">Listen · learn · create</div></div>
+          </div>
         </div>
       </section>
 
