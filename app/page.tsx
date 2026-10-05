@@ -133,20 +133,30 @@ function AdStudio() {
     }
   }
 
-  async function copyAds() {
-    if (!result) return;
+  function parsedAds() {
+    const chunks = result.split(/(?=AD #\\d+)/i).map((part) => part.trim()).filter(Boolean);
+    return chunks.map((chunk, index) => {
+      const headline = chunk.match(/Headline:\\s*([\\s\\S]*?)(?=\\n\\s*Body Copy:)/i)?.[1]?.trim() || `Ad idea ${index + 1}`;
+      const body = chunk.match(/Body Copy:\\s*([\\s\\S]*?)(?=\\n\\s*Call To Action:)/i)?.[1]?.trim() || chunk;
+      const cta = chunk.match(/Call To Action:\\s*([\\s\\S]*)$/i)?.[1]?.trim() || "";
+      return { headline, body, cta, raw: chunk };
+    });
+  }
+
+  async function copyAd(text = result) {
+    if (!text) return;
     try {
-      await navigator.clipboard.writeText(result);
+      await navigator.clipboard.writeText(text);
       setMessage("Your ad copy is ready to paste.");
     } catch {
       setMessage("Copy wasn’t available in this browser. Select the ad text to copy it.");
     }
   }
 
-  async function shareAd(platform: "facebook" | "tiktok" | "instagram" | "twitter" | "linkedin" | "nextdoor") {
-    if (!result) return;
+  async function shareAd(platform: "facebook" | "tiktok" | "instagram" | "twitter" | "linkedin" | "nextdoor", adText = result) {
+    if (!adText) return;
 
-    const text = safeWebsite ? `${result}\n\n${safeWebsite}` : result;
+    const text = safeWebsite ? `${adText}\n\n${safeWebsite}` : adText;
     const encodedText = encodeURIComponent(text);
     const encodedUrl = encodeURIComponent(safeWebsite || window.location.href);
 
@@ -325,8 +335,38 @@ function AdStudio() {
                   <div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#71836a]">{brandName || "Your brand"} · campaign</p><h4 className="mt-2 text-2xl font-semibold tracking-tight text-[#30402e]">{benefit || product}</h4><p className="mt-2 text-xs text-[#6e776a]">Generate a picture above to turn this into a visual ad.</p></div>
                 </div>}
                 <div className="p-5 sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={copyAds} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
-                  <pre className="mt-5 max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-2xl bg-[#f7f9f4] p-4 font-sans text-sm leading-6 text-[#4f5a4b]">{result}</pre>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={() => copyAd()} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
+                  <div className="mt-5 grid gap-4">
+                    {parsedAds().map((ad, index) => (
+                      <article key={`${ad.headline}-${index}`} className="overflow-hidden rounded-2xl border border-[#e3e8de] bg-[#fbfcf9]">
+                        <div className="grid sm:grid-cols-[180px_1fr]">
+                          <div className="relative min-h-40 overflow-hidden bg-gradient-to-br from-[#dfe9d6] via-[#f1eadf] to-[#d8e6e1]">
+                            {generatedImage ? <Image src={generatedImage} alt="" fill unoptimized className="object-cover" /> : <div className="flex h-full min-h-40 items-end p-4"><span className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</span></div>}
+                          </div>
+                          <div className="p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Ad idea {index + 1}</p><h5 className="mt-1 text-xl font-semibold tracking-tight text-[#30402e]">{ad.headline}</h5></div>
+                              <button type="button" onClick={() => copyAd(ad.raw)} className="shrink-0 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy</button>
+                            </div>
+                            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#596354]">{ad.body}</p>
+                            {ad.cta && <p className="mt-4 text-sm font-semibold text-[#35563c]">{ad.cta}</p>}
+                            <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e7ebe2] pt-4">
+                              <button type="button" onClick={() => shareAd("facebook", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>
+                              <button type="button" onClick={() => shareAd("instagram", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Instagram ↗</button>
+                              <button type="button" onClick={() => shareAd("tiktok", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">TikTok ↗</button>
+                              <button type="button" onClick={() => shareAd("twitter", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">X ↗</button>
+                              <button type="button" onClick={() => shareAd("linkedin", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">LinkedIn ↗</button>
+                              <button type="button" onClick={() => shareAd("nextdoor", ad.raw)} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Nextdoor ↗</button>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                  <details className="mt-4 rounded-xl bg-[#f7f9f4] p-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-[#65705f]">View raw generated copy</summary>
+                    <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap font-sans text-xs leading-5 text-[#596354]">{result}</pre>
+                  </details>
                   <div className="mt-4 border-t border-[#ecefe8] pt-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Share or post your ad</p>
                     <p className="mt-1 text-xs text-[#7b8277]">We’ll copy your ad and open the platform. Review it before publishing.</p>
