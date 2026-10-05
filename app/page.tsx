@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 
 type SavedAd = {
@@ -23,6 +24,9 @@ export default function Home() {
   const [adType, setAdType] = useState("facebook");
   const [adCount, setAdCount] = useState("5");
   const [result, setResult] = useState("");
+  const [generatedImage, setGeneratedImage] = useState("");
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageMessage, setImageMessage] = useState("");
   const [message, setMessage] = useState("");
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,6 +87,44 @@ export default function Home() {
       setMessage(error instanceof Error ? error.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function generatePicture() {
+    setImageMessage("");
+    if (!isSignedIn) {
+      setImageMessage("Sign in to generate a picture.");
+      return;
+    }
+    if (!product.trim() || !audience.trim()) {
+      setImageMessage("Add a product and target audience first.");
+      return;
+    }
+    if (imageLoading || loading) return;
+    setImageLoading(true);
+    try {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product, audience, benefit, brandName, adType, tone }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.image) throw new Error(data.error || "Picture generation failed.");
+      setGeneratedImage(data.image);
+      setImageMessage("Your picture is ready. Download it to keep a copy.");
+    } catch (error) {
+      setImageMessage(error instanceof Error ? error.message : "Picture generation failed. Please try again.");
+    } finally {
+      try {
+        const response = await fetch("/api/user");
+        if (response.ok) {
+          const account = await response.json();
+          setCreditsLeft(Number(account.ads_limit) - Number(account.ads_used));
+        }
+      } catch {
+        // Keep the generation result available if the balance refresh fails.
+      }
+      setImageLoading(false);
     }
   }
 
@@ -226,7 +268,18 @@ export default function Home() {
                 <label className="text-xs font-semibold text-[#697064]">Website <span className="font-normal text-[#a0a399]">(optional)</span><input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourwebsite.com" className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#20231f] outline-none transition placeholder:text-[#b1b4ac] focus:border-[#91a783] focus:ring-4 focus:ring-[#dbe6d3]/60" /></label>
                 <label className="text-xs font-semibold text-[#697064]">Number of ideas<select value={adCount} onChange={(e) => setAdCount(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#33382f] outline-none focus:border-[#91a783]"><option value="5">5 ideas</option><option value="10">10 ideas</option><option value="20">20 ideas</option></select></label>
               </div>
-              {isSignedIn ? <button onClick={generateAds} disabled={loading || creditsLeft === 0} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <><span className="animate-spin">◌</span> Finding your angle…</> : creditsLeft === 0 ? "You’re out of generations" : "✳ Create my ad ideas"}</button> : <SignUpButton mode="modal"><button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Create a free account to start ↗</button></SignUpButton>}
+              {isSignedIn ? <button onClick={generateAds} disabled={loading || imageLoading || creditsLeft === 0} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <><span className="animate-spin">◌</span> Finding your angle…</> : creditsLeft === 0 ? "You’re out of generations" : "✳ Create my ad ideas"}</button> : <SignUpButton mode="modal"><button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Create a free account to start ↗</button></SignUpButton>}
+              <div className="mt-5 rounded-2xl border border-[#e6e9df] bg-[#fbfcf9] p-5">
+                <h4 className="font-semibold text-[#344332]">Add a picture to your ad</h4>
+                <p className="mt-2 text-xs leading-5 text-[#60675b]">Create a square image from the product, audience, and style above. Each picture uses 1 credit. Download it before leaving; pictures are not saved to your workspace yet.</p>
+                {isSignedIn ? <button type="button" onClick={generatePicture} disabled={imageLoading || loading || creditsLeft === 0} className="mt-4 w-full rounded-xl border border-[#35563c] px-5 py-3 text-sm font-semibold text-[#35563c] transition hover:bg-[#edf3e8] disabled:cursor-not-allowed disabled:opacity-55">{imageLoading ? "Creating your picture…" : creditsLeft === 0 ? "You’re out of generations" : "Generate picture · 1 credit"}</button> : <p className="mt-3 text-xs text-[#60675b]">Sign in or create a free account above to generate pictures.</p>}
+                <p aria-live="polite" role="status" className="mt-3 text-sm text-[#53624c]">{imageLoading ? "This can take a couple of minutes. Keep this page open." : imageMessage}</p>
+                {generatedImage && <figure className="mt-4">
+                  <Image src={generatedImage} alt="AI-generated advertising concept from your product brief" width={1024} height={1024} unoptimized className="h-auto w-full rounded-xl" />
+                  <figcaption className="mt-2 text-xs text-[#727a6d]">AI-generated concept. Review for accuracy before using it in an advertisement.</figcaption>
+                  <a href={generatedImage} download="ad-picture.png" className="mt-3 inline-flex rounded-full bg-[#35563c] px-4 py-2 text-xs font-semibold text-white hover:bg-[#28452f]">Download picture (PNG)</a>
+                </figure>}
+              </div>
               {message && <p aria-live="polite" className="mt-3 rounded-xl bg-[#f5f6f1] px-4 py-3 text-sm text-[#53624c]">{message}</p>}
               {result && <div className="mt-5 rounded-2xl border border-[#e6e9df] bg-[#fbfcf9] p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h4 className="font-semibold text-[#344332]">Your campaign ideas</h4><div className="flex gap-2"><button onClick={copyAds} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download</button></div></div><pre className="mt-4 max-h-[32rem] overflow-auto whitespace-pre-wrap font-sans text-sm leading-6 text-[#60675b]">{result}</pre></div>}
             </div>
