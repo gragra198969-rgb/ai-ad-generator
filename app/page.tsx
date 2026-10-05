@@ -39,6 +39,9 @@ function AdStudio() {
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
   const [savedAds, setSavedAds] = useState<SavedAd[]>([]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [adEdits, setAdEdits] = useState<Record<number, { headline: string; body: string; cta: string }>>({});
+  const [adImages, setAdImages] = useState<Record<number, string>>({});
+  const [adImageLoading, setAdImageLoading] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -79,6 +82,8 @@ function AdStudio() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.result || "Ad generation failed. Please try again.");
       setResult(data.result || "No ad was returned. Please try again.");
+      setAdEdits({});
+      setAdImages({});
       const userResponse = await fetch("/api/user");
       if (userResponse.ok) {
         const userData = await userResponse.json();
@@ -142,6 +147,50 @@ function AdStudio() {
       const cta = chunk.match(/Call To Action:\\s*([\\s\\S]*)$/i)?.[1]?.trim() || "";
       return { headline, body, cta, raw: chunk };
     });
+  }
+
+  function editAd(index: number, field: "headline" | "body" | "cta", value: string) {
+    const source = parsedAds()[index];
+    setAdEdits((current) => ({
+      ...current,
+      [index]: { headline: source.headline, body: source.body, cta: source.cta, ...current[index], [field]: value },
+    }));
+  }
+
+  function adText(index: number) {
+    const source = parsedAds()[index];
+    const ad = { ...source, ...adEdits[index] };
+    return `Headline: ${ad.headline}\nBody Copy: ${ad.body}\nCall To Action: ${ad.cta}`;
+  }
+
+  async function generateAdImage(index: number) {
+    const source = parsedAds()[index];
+    const ad = { ...source, ...adEdits[index] };
+    if (adImageLoading !== null || imageLoading || loading) return;
+    setAdImageLoading(index);
+    setMessage("");
+    try {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product, audience, benefit: `${benefit}\nAd headline: ${ad.headline}\nAd message: ${ad.body}\nCTA: ${ad.cta}`, brandName, adType, tone }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.image) throw new Error(data.error || "Picture generation failed.");
+      setAdImages((current) => ({ ...current, [index]: data.image }));
+      setMessage(`A unique image was created for this ad.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Picture generation failed. Please try again.");
+    } finally {
+      try {
+        const response = await fetch("/api/user");
+        if (response.ok) {
+          const account = await response.json();
+          setCreditsLeft(Number(account.ads_limit) - Number(account.ads_used));
+        }
+      } catch {}
+      setAdImageLoading(null);
+    }
   }
 
   async function copyAd(text = result) {
@@ -373,29 +422,30 @@ function AdStudio() {
                           <span className="rounded-full bg-[#f0f4ec] px-2.5 py-1 text-[10px] font-semibold text-[#607458]">Ad preview</span>
                         </div>
                         <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-[#dfe9d6] via-[#f1eadf] to-[#d8e6e1] sm:aspect-[16/9]">
-                          {generatedImage ? <Image src={generatedImage} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
+                          {(adImages[index] || generatedImage) ? <Image src={adImages[index] || generatedImage} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
                         </div>
                         <div className="p-5 sm:p-6">
-                          <h5 className="text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b]">{ad.headline}</h5>
-                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#596354]">{ad.body}</p>
+                          <label className="block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Headline · tap to edit</span><input value={adEdits[index]?.headline ?? ad.headline} onChange={(event) => editAd(index, "headline", event.target.value)} className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
+                          <label className="mt-3 block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Ad copy · tap to edit</span><textarea value={adEdits[index]?.body ?? ad.body} onChange={(event) => editAd(index, "body", event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-transparent bg-transparent px-0 text-sm leading-6 text-[#596354] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#e7ebe2] pt-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               {safeWebsite && <p className="truncate text-[10px] uppercase tracking-[.12em] text-[#92998d]">{safeWebsite.replace(/^https?:\\/\\//i, "")}</p>}
-                              {ad.cta && <p className="mt-1 text-sm font-semibold text-[#35563c]">{ad.cta}</p>}
+                              <input aria-label="Call to action" value={adEdits[index]?.cta ?? ad.cta} onChange={(event) => editAd(index, "cta", event.target.value)} placeholder="Call to action" className="mt-1 w-full rounded-md border border-transparent bg-transparent px-0 text-sm font-semibold text-[#35563c] outline-none focus:border-[#dbe3d4] focus:bg-white focus:px-2 focus:py-1" />
                             </div>
                             {safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg bg-[#35563c] px-5 py-2.5 text-center text-xs font-semibold text-white hover:bg-[#28452f]">Learn more ↗</a>}
                           </div>
                         </div>
                         <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">
                           <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={() => copyAd(ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy ad</button>
+                            <button type="button" onClick={() => generateAdImage(index)} disabled={adImageLoading !== null || creditsLeft === 0} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">{adImageLoading === index ? "Creating image…" : adImages[index] ? "Regenerate image · 1 credit" : "Generate image · 1 credit"}</button>
+                            <button type="button" onClick={() => copyAd(adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy ad</button>
                             <span className="mr-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#9aa094]">Post to</span>
-                            <button type="button" onClick={() => shareAd("facebook", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>
-                            <button type="button" onClick={() => shareAd("instagram", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Instagram ↗</button>
-                            <button type="button" onClick={() => shareAd("tiktok", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">TikTok ↗</button>
-                            <button type="button" onClick={() => shareAd("twitter", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">X ↗</button>
-                            <button type="button" onClick={() => shareAd("linkedin", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">LinkedIn ↗</button>
-                            <button type="button" onClick={() => shareAd("nextdoor", ad.raw)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Nextdoor ↗</button>
+                            <button type="button" onClick={() => shareAd("facebook", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>
+                            <button type="button" onClick={() => shareAd("instagram", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Instagram ↗</button>
+                            <button type="button" onClick={() => shareAd("tiktok", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">TikTok ↗</button>
+                            <button type="button" onClick={() => shareAd("twitter", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">X ↗</button>
+                            <button type="button" onClick={() => shareAd("linkedin", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">LinkedIn ↗</button>
+                            <button type="button" onClick={() => shareAd("nextdoor", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Nextdoor ↗</button>
                           </div>
                         </div>
                       </article>
