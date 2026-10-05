@@ -160,10 +160,13 @@ function AdStudio() {
 
   function editAd(index: number, field: "headline" | "body" | "cta", value: string) {
     const source = parsedAds()[index];
-    setAdEdits((current) => ({
-      ...current,
-      [index]: { headline: source.headline, body: source.body, cta: source.cta, ...current[index], [field]: value },
-    }));
+    setAdEdits((current) => {
+      const previous = current[index] ?? source;
+      return {
+        ...current,
+        [index]: { ...previous, [field]: value },
+      };
+    });
   }
 
   function adText(index: number) {
@@ -500,7 +503,7 @@ function AdStudio() {
                           <label className="mt-3 block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Ad copy · tap to edit</span><textarea value={adEdits[index]?.body ?? ad.body} onChange={(event) => editAd(index, "body", event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-transparent bg-transparent px-0 text-sm leading-6 text-[#596354] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#e7ebe2] pt-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
-                              {safeWebsite && <p className="truncate text-[10px] uppercase tracking-[.12em] text-[#92998d]">{safeWebsite.replace(/^https?:\\/\\//i, "")}</p>}
+                              {safeWebsite && <p className="truncate text-[10px] uppercase tracking-[.12em] text-[#92998d]">{safeWebsite.replace(/^https?:\/\//i, "")}</p>}
                               <input aria-label="Call to action" value={adEdits[index]?.cta ?? ad.cta} onChange={(event) => editAd(index, "cta", event.target.value)} placeholder="Call to action" className="mt-1 w-full rounded-md border border-transparent bg-transparent px-0 text-sm font-semibold text-[#35563c] outline-none focus:border-[#dbe3d4] focus:bg-white focus:px-2 focus:py-1" />
                             </div>
                             {safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg bg-[#35563c] px-5 py-2.5 text-center text-xs font-semibold text-white hover:bg-[#28452f]">Learn more ↗</a>}
