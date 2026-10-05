@@ -8,6 +8,7 @@ type SavedAd = {
   brand_name?: string;
   product?: string;
   audience?: string;
+  ad_type?: string;
   created_at: string | Date;
   generated_ads?: string;
 };
@@ -16,6 +17,20 @@ type CreditUsage = {
   used: number;
   limit: number;
 };
+
+type SavedIdea = { number: string; headline: string; body: string; cta: string };
+
+function parseSavedIdeas(raw?: string): SavedIdea[] {
+  if (!raw) return [];
+  const chunks = raw.split(/(?=AD\s*#\s*\d+)/i).filter((chunk) => /AD\s*#\s*\d+/i.test(chunk));
+  return chunks.map((chunk, index) => {
+    const number = chunk.match(/AD\s*#\s*(\d+)/i)?.[1] || String(index + 1);
+    const headline = chunk.match(/Headline:\s*([\s\S]*?)(?=\n\s*Body Copy:|$)/i)?.[1]?.trim() || "";
+    const body = chunk.match(/Body Copy:\s*([\s\S]*?)(?=\n\s*(?:Call To Action|CTA):|$)/i)?.[1]?.trim() || "";
+    const cta = chunk.match(/(?:Call To Action|CTA):\s*([\s\S]*?)\s*$/i)?.[1]?.trim() || "";
+    return { number, headline, body, cta };
+  }).filter((idea) => idea.headline || idea.body || idea.cta);
+}
 
 export default function Dashboard() {
   const { isLoaded, isSignedIn } = useUser();
@@ -290,6 +305,7 @@ export default function Dashboard() {
               {filteredAds.map((ad) => {
                 const date = new Date(ad.created_at);
                 const dateLabel = Number.isNaN(date.getTime()) ? "Saved campaign" : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+                const adIdeas = parseSavedIdeas(ad.generated_ads);
 
                 return (
                   <article key={ad.id} className="flex min-w-0 flex-col rounded-[1.4rem] border border-[#e8eae3] bg-white p-5 shadow-sm shadow-black/[.02] transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#35563c]/[.06]">
@@ -306,11 +322,28 @@ export default function Dashboard() {
                     </div>
                     <div className="mt-auto pt-5">
                       {ad.generated_ads && (
-                        <details className="group rounded-xl bg-[#f7f8f4]">
-                          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-[#506547] marker:hidden">
-                            <span className="flex items-center justify-between">View generated ideas <span className="transition group-open:rotate-180" aria-hidden="true">⌄</span></span>
+                        <details className="group overflow-hidden rounded-[1.25rem] border border-[#e4e9df] bg-white">
+                          <summary className="cursor-pointer list-none px-4 py-3.5 marker:hidden">
+                            <span className="flex items-center justify-between gap-3">
+                              <span><span className="block text-sm font-semibold text-[#40513a]">View ad previews</span><span className="mt-0.5 block text-xs font-normal text-[#8b9285]">{adIdeas.length || "Campaign"} {adIdeas.length === 1 ? "idea" : "ideas"} · copy and call to action</span></span>
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f0f4ec] text-[#607458] transition group-open:rotate-180" aria-hidden="true">⌄</span>
+                            </span>
                           </summary>
-                          <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words px-4 pb-4 text-xs leading-5 text-[#656b60]">{ad.generated_ads}</pre>
+                          <div className="max-h-[34rem] space-y-3 overflow-auto border-t border-[#edf0e9] bg-[#fafbf8] p-3">
+                            {adIdeas.length > 0 ? adIdeas.map((idea, index) => (
+                              <article key={index} className="overflow-hidden rounded-[1.1rem] border border-[#e7ebe2] bg-white shadow-sm">
+                                <div className="bg-gradient-to-r from-[#35563c] via-[#49694b] to-[#819575] px-4 py-4 text-white">
+                                  <div className="flex items-center justify-between gap-2"><span className="text-[10px] font-semibold uppercase tracking-[.16em] text-white/75">Ad idea {idea.number || index + 1}</span><span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-medium">{ad.ad_type || "Campaign"} preview</span></div>
+                                  <h4 className="mt-3 text-lg font-semibold leading-snug tracking-tight sm:text-xl">{idea.headline || "Campaign idea"}</h4>
+                                </div>
+                                <div className="p-4 sm:p-5">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#92998d]">Primary message</p>
+                                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#535d4e]">{idea.body || "Review the saved campaign copy in the original project."}</p>
+                                  {idea.cta && <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0e9] pt-3"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#92998d]">Call to action</span><span className="rounded-full bg-[#edf2e9] px-3.5 py-2 text-xs font-semibold text-[#405b3c]">{idea.cta}</span></div>}
+                                </div>
+                              </article>
+                            )) : <pre className="whitespace-pre-wrap break-words p-3 text-xs leading-5 text-[#656b60]">{ad.generated_ads}</pre>}
+                          </div>
                         </details>
                       )}
                       <button

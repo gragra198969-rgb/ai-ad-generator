@@ -44,12 +44,11 @@ export async function POST(req: Request) {
     if (!accounts.length) return Response.json({ result: "You have used all your available generations." }, { status: 403 });
     reserved = true;
 const brandSection = brandName
-  ? `- The brand name is "${brandName}"
-- Use the brand name naturally throughout the advertisements.
-- Combine the brand name and product category when appropriate.
-- Prefer using "${brandName}" in headlines.`
+  ? `- The brand name is "${brandName}".
+- Use it naturally; do not force it into every sentence.
+- Include it in a headline only when it reads smoothly.`
   : `- No brand name was provided.
-- Focus on the product and benefit.`;
+- Do not invent one. Focus on the product and its real benefit.`;
 const totalAds = adCount;
 
 const prompt = `
@@ -157,33 +156,19 @@ HEADLINE RULES
 
 COPYWRITING RULES
 
-- Write like a professional marketer
-- Use emotional triggers
-- Focus on benefits and outcomes
-- Use curiosity and urgency
-- Create unique angles for every ad
-- Use persuasive language without invented social proof
-- Ready for real-world advertising campaigns
-- Every advertisement must use a different marketing angle.
-- Do not repeat headlines.
-- Do not repeat body copy themes.
-- Make each advertisement feel independently written.
+Write specific, clear copy a real business could publish.
 
-Each advertisement must have a completely different angle.
+- Use only details supplied by the user. Never invent ingredients, product features, prices, discounts, guarantees, customer reviews, statistics, or results.
+- Lead with one relevant benefit or moment for this audience. Make each idea take a different, believable angle.
+- Keep body copy to 25–55 words in 1–3 sentences. For TikTok, aim for 15–35 words and a natural spoken hook.
+- Make the CTA direct and 2–6 words. Do not create fake urgency or imply a promotion unless the user supplied one.
+- Use concrete nouns and active verbs. Avoid vague superlatives and filler.
+- Avoid stock phrases such as “unlock your potential,” “every moment tells a story,” “because you deserve,” and “take it to the next level,” unless the brief specifically calls for them.
+- Do not repeat the product name in every line. Use the audience and their real needs to make the message feel tailored.
+- Do not invent testimonials or imply health, financial, or performance outcomes that the product details do not support.
 
-Possible angles include:
-- convenience
-- lifestyle
-- emotional connection
-- curiosity
-- premium quality
-- daily routine
-- confidence
-- value
-- transformation
-- aspirational identity
+Each advertisement must have a different angle, opening idea, and call to action. Keep the tone consistent with the user’s selection while making the concepts sound like distinct campaigns.
 
-Do not reuse angles.
 OUTPUT RULES
 
 ${website
@@ -221,7 +206,7 @@ Return only the advertisements.
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 90000, maxRetries: 0 });
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1-mini", messages: [{ role: "user", content: prompt }], temperature: 0.9,
+      model: "gpt-4.1-mini", messages: [{ role: "user", content: prompt }], temperature: 0.75,
       max_completion_tokens: 6000,
     });
     const result = response.choices[0]?.message?.content;
