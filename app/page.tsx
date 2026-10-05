@@ -345,7 +345,7 @@ function AdStudio() {
                           </div>
                           <div className="p-5">
                             <div className="flex items-start justify-between gap-3">
-                              <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Ad idea {index + 1}</p><h5 className="mt-1 text-xl font-semibold tracking-tight text-[#30402e]">{ad.headline}</h5></div>
+                              <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">{brandName || product} · {adType}</p><h5 className="mt-1 text-xl font-semibold tracking-tight text-[#30402e]">{ad.headline}</h5></div>
                               <button type="button" onClick={() => copyAd(ad.raw)} className="shrink-0 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy</button>
                             </div>
                             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#596354]">{ad.body}</p>
