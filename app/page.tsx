@@ -20,6 +20,43 @@ type SavedAd = {
 
 const platforms = ["Instagram", "Facebook", "Google", "TikTok", "LinkedIn", "Email"];
 
+const sampleCampaigns = {
+  home: {
+    category: "Home & lifestyle",
+    brand: "Sunday Supply",
+    ads: [
+      { headline: "Make room for better days", body: "Meet everyday essentials that fit the moments you love: slow mornings, fresh starts, and a space that feels like you.", cta: "Find your everyday favorites." },
+      { headline: "A fresh start feels like home", body: "A favorite mug. A soft throw. A little corner of calm. Bring a personal touch to your daily routine with Sunday Supply.", cta: "Explore your next small refresh." },
+      { headline: "Small details, a little more you", body: "Your space tells a story. Add everyday pieces that make it yours, from the first cup of coffee to the last page of the evening.", cta: "Make yourself at home." },
+      { headline: "Give your everyday a Sunday feeling", body: "You don't need a special occasion to enjoy your space. Find inspiration for the little rituals that make an ordinary day feel good.", cta: "Discover your Sunday inspiration." },
+      { headline: "What belongs in your favorite corner?", body: "Start with one thoughtful detail. Build a space around the things you reach for, enjoy, and choose again every day.", cta: "Find a detail to call your own." },
+    ],
+  },
+  pets: {
+    category: "Pet care",
+    brand: "Good Dog Kitchen",
+    ads: [
+      { headline: "Dinner time has a fan club", body: "The familiar footsteps, the happy tail, the bowl set down in its usual spot. Make room in your routine for one of your dog's favorite moments.", cta: "Explore mealtime ideas." },
+      { headline: "A little tail wag goes a long way", body: "Some of the best parts of the day arrive on four paws. Celebrate the walks, play breaks, and everyday moments you share with your dog.", cta: "Find their next favorite." },
+      { headline: "For the sidekick in every story", body: "From morning greetings to the last walk of the day, your dog is part of it all. Give their everyday routine a little extra thought.", cta: "Meet Good Dog Kitchen." },
+      { headline: "Make their bowl part of the ritual", body: "A steady routine can make busy days feel simpler. Set the bowl, fill the water, and enjoy the small moment together.", cta: "See what's on the menu." },
+      { headline: "Walks, naps, repeat", body: "Every dog has a rhythm of their own. Find ideas for making the little parts of your shared routine feel more like yours.", cta: "Explore the everyday." },
+    ],
+  },
+  local: {
+    category: "Local service",
+    brand: "Northside Bike Repair",
+    ads: [
+      { headline: "Your next ride starts here", body: "A flat tire or a squeaky brake can interrupt the plan. Tell us what your bike needs and stop by Northside Bike Repair.", cta: "Ask about a repair." },
+      { headline: "Keep the weekend ride in sight", body: "Planning a route, meeting a friend, or heading across town? Bring your bike in and talk with us about the service it needs.", cta: "Plan a visit." },
+      { headline: "A shop for the miles ahead", body: "From a quick tune-up question to a repair you have been putting off, Northside Bike Repair is here to talk bikes with local riders.", cta: "Come say hello." },
+      { headline: "One less thing between you and the ride", body: "If your bike needs attention, start with a conversation. Share what you have noticed and we'll help you figure out a next step.", cta: "Talk with our team." },
+      { headline: "Make room for the long way home", body: "The best rides don't always follow a schedule. Get your bike checked before your next trip around the neighborhood.", cta: "Stop by the shop." },
+    ],
+  },
+} as const;
+
+
 export default function Home() {
   const { user } = useUser();
   return <AdStudio key={user?.id ?? "signed-out"} />;
@@ -46,6 +83,7 @@ function AdStudio() {
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
   const [savedAds, setSavedAds] = useState<SavedAd[]>([]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [sampleCategory, setSampleCategory] = useState<keyof typeof sampleCampaigns>("home");
   const [adEdits, setAdEdits] = useState<Record<number, { headline: string; body: string; cta: string }>>({});
   const [adImages, setAdImages] = useState<Record<number, string>>({});
   const [adImageLoading, setAdImageLoading] = useState<number | null>(null);
@@ -413,16 +451,17 @@ function AdStudio() {
                     <span className="hidden group-open:inline">Close sample ads ↑</span>
                   </summary>
                   <div className="mt-4 rounded-2xl border border-[#dbe3d4] bg-white p-4 text-[#2d392b]">
-                    <h3 className="text-sm font-semibold">Sunday Supply · sample campaign</h3>
-                    <p className="mt-2 text-xs leading-5 text-[#727a6d]">Five ready-written examples for a fictional everyday essentials brand. No account or credits needed.</p>
+                    <h3 className="text-sm font-semibold">{sampleCampaigns[sampleCategory].brand} · sample campaign</h3>
+                    <p className="mt-2 text-xs leading-5 text-[#727a6d]">Explore ready-written examples for a fictional {sampleCampaigns[sampleCategory].category.toLowerCase()} business. No account or credits needed.</p>
+                    <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Choose sample business type">
+                      {(Object.keys(sampleCampaigns) as Array<keyof typeof sampleCampaigns>).map((category) => (
+                        <button key={category} type="button" onClick={() => setSampleCategory(category)} aria-pressed={sampleCategory === category} className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#35563c] ${sampleCategory === category ? "border-[#35563c] bg-[#35563c] text-white" : "border-[#dfe3d9] bg-white text-[#52664a] hover:bg-[#f3f5ed]"}`}>
+                          {sampleCampaigns[category].category}
+                        </button>
+                      ))}
+                    </div>
                     <ol className="mt-4 space-y-4">
-                      {[
-                        { headline: "Make room for better days", body: "Meet everyday essentials that fit the moments you love: slow mornings, fresh starts, and a space that feels like you.", cta: "Find your everyday favorites." },
-                        { headline: "A fresh start feels like home", body: "A favorite mug. A soft throw. A little corner of calm. Bring a personal touch to your daily routine with Sunday Supply.", cta: "Explore your next small refresh." },
-                        { headline: "Small details, a little more you", body: "Your space tells a story. Add everyday pieces that make it yours, from the first cup of coffee to the last page of the evening.", cta: "Make yourself at home." },
-                        { headline: "Give your everyday a Sunday feeling", body: "You don't need a special occasion to enjoy your space. Find inspiration for the little rituals that make an ordinary day feel good.", cta: "Discover your Sunday inspiration." },
-                        { headline: "What belongs in your favorite corner?", body: "Start with one thoughtful detail. Build a space around the things you reach for, enjoy, and choose again every day.", cta: "Find a detail to call your own." },
-                      ].map((ad, index) => (
+                      {sampleCampaigns[sampleCategory].ads.map((ad, index) => (
                         <li key={ad.headline} className="border-t border-[#e8eae3] pt-3">
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-[#779067]">Sample ad {index + 1}</p>
                           <h4 className="mt-1 text-sm font-semibold">{ad.headline}</h4>
