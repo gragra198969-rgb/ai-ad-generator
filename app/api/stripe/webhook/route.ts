@@ -88,7 +88,7 @@ export async function POST(req: Request) {
     if (clerkUserId) {
       await sql`
         UPDATE users
-        SET ads_used = 0, ads_limit = 50
+        SET ads_used = 0, ads_limit = 10
         WHERE clerk_user_id = ${clerkUserId}
       `;
     }

@@ -12,7 +12,7 @@ export default function FAQPage() {
     },
     {
       question: "How does the free plan work?",
-      answer: "The free plan includes up to 50 generations. Each generation can return 5, 10, or 20 copy ideas. Your available balance appears in the ad studio after you sign in.",
+      answer: "The free plan includes up to 10 generations. Each generation can return 5, 10, or 20 copy ideas. Your available balance appears in the ad studio after you sign in.",
     },
     {
       question: "What is included in Pro?",

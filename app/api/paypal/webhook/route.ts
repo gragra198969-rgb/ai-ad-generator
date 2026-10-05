@@ -97,7 +97,7 @@ export async function POST(request: Request) {
           WHERE subscription_id = ${subscriptionId} AND clerk_user_id = ${userId}
         `;
         await sql`
-          UPDATE users SET ads_used = 0, ads_limit = 50
+          UPDATE users SET ads_used = 0, ads_limit = 10
           WHERE clerk_user_id = ${userId}
         `;
       }

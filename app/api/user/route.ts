@@ -20,7 +20,7 @@ export async function GET() {
   if (!users.length) {
     return Response.json({
       ads_used: 0,
-      ads_limit: 50,
+      ads_limit: 10,
     });
   }
 

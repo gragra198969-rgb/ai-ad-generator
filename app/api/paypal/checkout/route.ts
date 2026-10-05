@@ -13,7 +13,7 @@ export async function POST() {
     const [account] = await sql`
       SELECT ads_limit FROM users WHERE clerk_user_id = ${userId} LIMIT 1
     `;
-    if (Number(account?.ads_limit ?? 50) >= 1000) {
+    if (Number(account?.ads_limit ?? 10) >= 1000) {
       return Response.json({ error: "This account already has Pro access." }, { status: 409 });
     }
 

@@ -125,7 +125,7 @@ For a **new, empty development database**, run this minimal schema in the Neon S
 CREATE TABLE IF NOT EXISTS users (
   clerk_user_id TEXT PRIMARY KEY,
   ads_used INTEGER NOT NULL DEFAULT 0,
-  ads_limit INTEGER NOT NULL DEFAULT 50
+  ads_limit INTEGER NOT NULL DEFAULT 10
 );
 
 CREATE TABLE IF NOT EXISTS ads (
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS ads (
 );
 ```
 
-The unique/primary key on `users.clerk_user_id` is required for billing and generation `ON CONFLICT` statements. Defaults initialize a free account when generation inserts only the Clerk user ID. `ads.id` supports ordering/deletion and `created_at` is displayed by the dashboard.
+The unique/primary key on `users.clerk_user_id` is required for billing and generation `ON CONFLICT` statements. The generation route explicitly inserts 0 used and a 10-generation limit for new accounts, so existing databases with an older default also give new users 10 credits. Existing account balances are preserved. `ads.id` supports ordering/deletion and `created_at` is displayed by the dashboard.
 
 PayPal creates these additional objects at runtime:
 
@@ -157,11 +157,11 @@ The database role therefore needs table/index creation permissions in addition t
 
 The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal sign-in/sign-up and `useUser`. Configure the corresponding development or production Clerk instance for your app's domain.
 
-`middleware.ts` installs `clerkMiddleware()`; it does not globally require sign-in. The text-generation, account, saved-ad, and checkout handlers explicitly check `auth()` and return HTTP 401 without a user. Payment webhooks authenticate using provider signatures instead of a Clerk session. There is no Clerk webhook that provisions database users: text generation inserts a user on demand, billing can upsert one, and `GET /api/user` returns a default 0/50 allowance if none exists.
+`middleware.ts` installs `clerkMiddleware()`; it does not globally require sign-in. The text-generation, account, saved-ad, and checkout handlers explicitly check `auth()` and return HTTP 401 without a user. Payment webhooks authenticate using provider signatures instead of a Clerk session. There is no Clerk webhook that provisions database users: text generation inserts a user on demand, billing can upsert one, and `GET /api/user` returns a default 0/10 allowance if none exists.
 
 `POST /api/generate` accepts `product`, `audience`, `benefit`, `website`, `tone`, `adType`, `adCount`, and `brandName`. Product and audience are required. It requests copy from OpenAI Chat Completions using `gpt-4.1-mini`, bounds the requested count to 1–20 (default 5), increments usage, inserts the generated batch into `ads`, and returns `{ result }`.
 
-**One generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. Free users default to 50 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
+**One generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. Free users default to 10 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
 
 `POST /api/generate-image` accepts product, audience, and benefit, requests a 1024×1024 image from `gpt-image-1`, and returns a PNG data URL. It currently has no sign-in requirement, usage deduction, or database persistence.
 
@@ -177,7 +177,7 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 Checkout creates a hosted subscription session with the Clerk ID in `client_reference_id` and subscription metadata. Success returns to `/dashboard?success=true`; cancellation returns to `/?canceled=true`. Redirects alone do not update credits.
 
-The signature-verified webhook grants 1,000/reset usage on checkout completion, resets to 1,000 on a paid invoice using subscription metadata, and resets to 50 on subscription deletion. Payment failures and subscription updates are not handled.
+The signature-verified webhook grants 1,000/reset usage on checkout completion, resets to 1,000 on a paid invoice using subscription metadata, and resets to 10 on subscription deletion. Payment failures and subscription updates are not handled.
 
 For local testing with the Stripe CLI installed/authenticated:
 
@@ -204,7 +204,7 @@ PayPal is a separate subscription/payment provider. PayPal receipts settle to th
 
 Checkout attaches the Clerk ID as `custom_id`, rejects accounts whose allowance is already at least 1,000, and reuses pending approval URLs for up to 30 minutes. Return and cancellation pages are `/paypal/return` and `/paypal/cancel`; neither page grants Pro.
 
-The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale grants/resets 1,000 generations. Cancellation, suspension, or expiry resets the user to 50 when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
+The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale grants/resets 1,000 generations. Cancellation, suspension, or expiry resets the user to 10 when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
 
 For local webhook testing, expose the local server through a public HTTPS tunnel and register that URL with the Sandbox app, or use a Sandbox-configured preview deployment. Set `NEXT_PUBLIC_URL` to the reachable app origin and use the webhook ID for that exact registered endpoint.
 
@@ -236,7 +236,7 @@ Redeploy after environment changes; public variables, including PayPal button vi
 
 Run `npm run lint` and `npm run build` with configuration present. No automated test script is currently defined.
 
-For an end-to-end check, sign in with a test user, generate a batch, confirm usage increases by one, view it in the dashboard, and download the text. Test each payment provider independently: confirm the webhook changes `GET /api/user` to a 1,000 allowance, a later paid renewal resets usage, and subscription cancellation/deletion returns it to 50. Refresh the dashboard after webhook processing.
+For an end-to-end check, sign in with a test user, generate a batch, confirm usage increases by one, view it in the dashboard, and download the text. Test each payment provider independently: confirm the webhook changes `GET /api/user` to a 1,000 allowance, a later paid renewal resets usage, and subscription cancellation/deletion returns it to 10. Refresh the dashboard after webhook processing.
 
 | Symptom | Check |
 | --- | --- |
