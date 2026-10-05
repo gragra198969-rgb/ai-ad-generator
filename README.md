@@ -9,11 +9,11 @@ AdSurvey Studio is the product built in the `ai-ad-generator` repository: a Next
 - Neon/PostgreSQL generation history, a searchable dashboard, and deletion.
 - Copy-to-clipboard and plain-text download (`ads.txt`).
 - Stripe-hosted card subscription checkout and separate PayPal subscription checkout.
-- An image-generation API using `gpt-image-1`; it is not connected to the current homepage UI.
+- Picture generation in the ad studio using `gpt-image-1`, with a preview and PNG download (one credit per picture).
 
 PDF export, survey creation/response collection, and a separate projects system are not implemented. Saved work currently consists of ad-generation records.
 
-**Current deployment limitations:** saved ads are not scoped to their owner, and the image endpoint has no authentication or credit check. Review [Current limitations](#current-limitations) before treating this as a production-ready multi-user SaaS.
+**Current deployment limitations:** saved ads are not scoped to their owner. Review [Current limitations](#current-limitations) before treating this as a production-ready multi-user SaaS.
 
 ## Stack and project map
 
@@ -161,9 +161,9 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 `POST /api/generate` accepts `product`, `audience`, `benefit`, `website`, `tone`, `adType`, `adCount`, and `brandName`. Product and audience are required. It requests copy from OpenAI Chat Completions using `gpt-4.1-mini`, bounds the requested count to 1–20 (default 5), increments usage, inserts the generated batch into `ads`, and returns `{ result }`.
 
-**One generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. Free users default to 10 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
+**One text generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. Each picture also consumes one credit. Free users default to 10 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
 
-`POST /api/generate-image` accepts product, audience, and benefit, requests a 1024×1024 image from `gpt-image-1`, and returns a PNG data URL. It currently has no sign-in requirement, usage deduction, or database persistence.
+`POST /api/generate-image` requires Clerk sign-in and accepts product, audience, benefit, brandName, adType, and tone. It validates the brief, reserves one credit with a conditional database update, requests one low-quality 1024×1024 image from `gpt-image-1`, and returns a PNG data URL. Handled failures restore the credit. The studio displays the result and offers a PNG download; images are not stored in the database. The OpenAI project must have image-model access and billing. The route requests a 180-second execution limit and uses a 150-second API timeout without automatic retries; hosting must support that duration.
 
 ## Stripe billing
 
@@ -256,7 +256,7 @@ For an end-to-end check, sign in with a test user, generate a batch, confirm usa
 These are behaviors of the current code, not setup options:
 
 - **Saved-ad ownership:** generation does not store a Clerk user ID in `ads`; listing returns the latest 50 rows globally, and deletion filters only by ad ID. Any signed-in user can access/delete shared records. Owner-scoped persistence and authorization are needed for private customer work.
-- **Image API access:** the image route has no authentication, rate limit, or credit enforcement.
+- **Image lifecycle:** pictures are not persisted. Download before navigating away. Image requests reserve a credit atomically, but a process termination can interrupt the refund; billing resets concurrent with refunds can also affect accounting. There is no separate per-minute rate limit.
 - **Credit accounting:** allowance checks, usage increments, and ad inserts are separate operations. Concurrent requests can exceed a limit, and a save failure after the increment can still consume a credit.
 - **Billing lifecycle:** Stripe has no event deduplication and checkout-completion database errors are logged but acknowledged. Replayed events can reset usage. PayPal tracks processed events, but its event processing and allowance updates are not one transaction.
 - **Multiple subscriptions:** Stripe checkout does not guard against an existing Pro subscription. Both providers write the same allowance, with no combined subscription reconciliation; a cancellation from one can downgrade an account still paying through the other. No in-app billing portal or subscription-cancellation API exists.
