@@ -3,13 +3,18 @@ import { sql } from "@/app/lib/db";
 import { ensureAdOwnership } from "@/app/lib/ad-security";
 import { assertSameOrigin, RequestError } from "@/app/lib/request-security";
 
+async function ensureProjectFields() {
+  await ensureAdOwnership();
+  await sql`ALTER TABLE ads ADD COLUMN IF NOT EXISTS project_name TEXT`;
+}
+
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await ensureAdOwnership();
+    await ensureProjectFields();
     const ads = await sql`
-      SELECT id, brand_name, product, audience, benefit, website, tone,
+      SELECT id, project_name, brand_name, product, audience, benefit, website, tone,
              ad_type, ad_count, generated_ads, created_at
       FROM ads WHERE clerk_user_id = ${userId} ORDER BY id DESC LIMIT 50
     `;
