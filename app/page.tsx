@@ -9,6 +9,13 @@ type SavedAd = {
   brand_name?: string;
   product?: string;
   generated_ads?: string;
+  audience?: string;
+  benefit?: string;
+  website?: string;
+  tone?: string;
+  ad_type?: string;
+  ad_count?: number;
+  project_name?: string;
 };
 
 const platforms = ["Instagram", "Facebook", "Google", "TikTok", "LinkedIn", "Email"];
@@ -42,6 +49,8 @@ function AdStudio() {
   const [adEdits, setAdEdits] = useState<Record<number, { headline: string; body: string; cta: string }>>({});
   const [adImages, setAdImages] = useState<Record<number, string>>({});
   const [adImageLoading, setAdImageLoading] = useState<number | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -191,6 +200,68 @@ function AdStudio() {
       } catch {}
       setAdImageLoading(null);
     }
+  }
+
+  function currentEditedResult() {
+    return parsedAds().map((_, index) => `AD #${index + 1}\n${adText(index)}`).join("\n\n");
+  }
+
+  async function saveProject() {
+    if (!result || !isSignedIn) return;
+    const name = projectName.trim() || brandName.trim() || product.trim() || "Untitled campaign";
+    try {
+      const response = await fetch("/api/projects", {
+        method: activeProjectId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeProjectId, projectName: name, brandName, product, audience, benefit, website, tone, adType, adCount: Number(adCount), generatedAds: currentEditedResult() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not save this project.");
+      setActiveProjectId(Number(data.id));
+      setProjectName(data.project_name || name);
+      const adsResponse = await fetch("/api/ads");
+      if (adsResponse.ok) setSavedAds(await adsResponse.json());
+      setMessage(activeProjectId ? "Project updated." : "Project saved to your workspace.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this project."); }
+  }
+
+  function openProject(ad: SavedAd) {
+    setActiveProjectId(ad.id);
+    setProjectName(ad.project_name || ad.brand_name || ad.product || "Campaign");
+    setBrandName(ad.brand_name || "");
+    setProduct(ad.product || "");
+    setAudience(ad.audience || "");
+    setBenefit(ad.benefit || "");
+    setWebsite(ad.website || "");
+    setTone(ad.tone || "friendly");
+    setAdType(ad.ad_type || "facebook");
+    setAdCount(String(ad.ad_count || 5));
+    setResult(ad.generated_ads || "");
+    setAdEdits({});
+    setAdImages({});
+    setGeneratedImage("");
+    document.getElementById("studio")?.scrollIntoView({ behavior: "smooth" });
+    setMessage("Project opened. You can keep editing it.");
+  }
+
+  async function renameProject(ad: SavedAd) {
+    const nextName = window.prompt("Project name", ad.project_name || ad.brand_name || ad.product || "Campaign")?.trim();
+    if (!nextName) return;
+    const response = await fetch("/api/projects", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: ad.id, projectName: nextName }) });
+    const data = await response.json();
+    if (!response.ok) { setMessage(data.error || "Could not rename this project."); return; }
+    setSavedAds((items) => items.map((item) => item.id === ad.id ? { ...item, project_name: nextName } : item));
+    if (activeProjectId === ad.id) setProjectName(nextName);
+  }
+
+  async function deleteProject(ad: SavedAd) {
+    if (!window.confirm(`Delete “${ad.project_name || ad.brand_name || ad.product || "Campaign"}”? This cannot be undone.`)) return;
+    const response = await fetch(`/api/projects?id=${ad.id}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok) { setMessage(data.error || "Could not delete this project."); return; }
+    setSavedAds((items) => items.filter((item) => item.id !== ad.id));
+    if (activeProjectId === ad.id) { setActiveProjectId(null); setProjectName(""); }
+    setMessage("Project deleted.");
   }
 
   async function copyAd(text = result) {
@@ -410,7 +481,7 @@ function AdStudio() {
                   <div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#71836a]">{brandName || "Your brand"} · campaign</p><h4 className="mt-2 text-2xl font-semibold tracking-tight text-[#30402e]">{benefit || product}</h4><p className="mt-2 text-xs text-[#6e776a]">Generate a picture above to turn this into a visual ad.</p></div>
                 </div>}
                 <div className="p-5 sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex gap-2"><button onClick={() => copyAd()} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex flex-wrap gap-2"><input aria-label="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={brandName || product || "Project name"} className="min-w-36 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs text-[#344332] outline-none focus:border-[#91a783]" /><button type="button" onClick={saveProject} className="rounded-full bg-[#35563c] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#28452f]">{activeProjectId ? "Update project" : "Save project"}</button><button onClick={() => copyAd()} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
                   <div className="mt-5 grid gap-4">
                     {parsedAds().map((ad, index) => (
                       <article key={`${ad.headline}-${index}`} className="overflow-hidden rounded-[1.5rem] border border-[#dde4d7] bg-white shadow-[0_16px_40px_-30px_rgba(40,55,36,.45)]">
@@ -472,7 +543,7 @@ function AdStudio() {
               </div>}
             </div>
           </div>
-          {isSignedIn && savedAds.length > 0 && <div className="mx-auto mt-8 max-w-5xl"><details className={`rounded-2xl border p-5 ${darkMode ? "border-white/10 bg-[#171b24]" : "border-black/5 bg-white"}`}><summary className="cursor-pointer text-sm font-semibold">Your recent work <span className="ml-1 text-[#858a80]">({savedAds.length})</span></summary><div className="mt-4 grid gap-3 sm:grid-cols-2">{savedAds.slice(0, 4).map((ad) => <div key={ad.id} className="rounded-xl bg-[#f7f8f4] p-4"><div className="text-sm font-semibold text-[#3d4c39]">{ad.brand_name || ad.product || "Campaign"}</div><div className="mt-1 text-xs text-[#858a80]">{ad.product}</div></div>)}</div><a href="/dashboard" className="mt-4 inline-flex text-sm font-semibold text-[#547249]">Open your workspace ↗</a></details></div>}
+          {isSignedIn && savedAds.length > 0 && <div className="mx-auto mt-8 max-w-5xl"><details open className={`rounded-2xl border p-5 ${darkMode ? "border-white/10 bg-[#171b24]" : "border-black/5 bg-white"}`}><summary className="cursor-pointer text-sm font-semibold">Campaign projects <span className="ml-1 text-[#858a80]">({savedAds.length})</span></summary><p className="mt-2 text-xs text-[#858a80]">Open a campaign to continue editing it, rename it, or remove it from your workspace.</p><div className="mt-4 grid gap-3 sm:grid-cols-2">{savedAds.slice(0, 8).map((ad) => <div key={ad.id} className="rounded-xl bg-[#f7f8f4] p-4 text-[#3d4c39]"><div className="text-sm font-semibold">{ad.project_name || ad.brand_name || ad.product || "Campaign"}</div><div className="mt-1 text-xs text-[#858a80]">{ad.product || "Saved campaign"}{ad.ad_type ? ` · ${ad.ad_type}` : ""}</div><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => openProject(ad)} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white">Open</button><button type="button" onClick={() => renameProject(ad)} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Rename</button><button type="button" onClick={() => deleteProject(ad)} className="rounded-full border border-[#e4d8d5] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#8a5149]">Delete</button></div></div>)}</div><a href="/dashboard" className="mt-4 inline-flex text-sm font-semibold text-[#547249]">Open full workspace ↗</a></details></div>}
         </div>
       </section>
 
