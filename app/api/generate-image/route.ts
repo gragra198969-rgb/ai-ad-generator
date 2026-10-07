@@ -71,16 +71,17 @@ export async function POST(req: Request) {
       size: "1024x1024",
       quality: "low",
       n: 1,
-      prompt: `Create a square photorealistic commercial advertising photograph.
-Product or service: ${details.product}
-Audience: ${details.audience}
-Benefit or creative direction: ${details.benefit || "A natural product moment"}
-Brand: ${details.brandName || "No brand specified"}
-Channel: ${details.adType || "social media"}
-Tone: ${details.tone || "friendly"}
+      prompt: `Create one square, photorealistic editorial advertising photo to use as the visual background for a separately typeset ad. This must look like a real camera photograph, not a poster, ad layout, social graphic, website mockup, collage, or product-package redesign.
 
-Use a believable everyday setting, natural light, authentic materials, realistic proportions, reflections, and contact shadows. Give the subject a clear focal point, with warm editorial color and clean space for separately typeset ad copy. Make the result feel like a real photograph, not a stock template.
-Do not invent product features or packaging. If packaging is not described, keep it neutral and unbranded. Do not render text, logos, watermarks, testimonials, statistics, or unsupported claims. Avoid illustration, CGI, cartoon styling, plastic-looking surfaces, and excessive retouching.`,
+Product or service to depict: ${details.product}
+Audience and setting cues: ${details.audience}
+Benefit or creative direction: ${details.benefit || "A natural, relatable product moment"}
+Brand context for visual mood only (never draw or write the name): ${details.brandName || "none"}
+Tone for lighting and color only: ${details.tone || "friendly"}
+
+Build one believable everyday scene with a clear focal subject, natural light, authentic materials, realistic proportions, and grounded shadows. Use an editorial commercial-photo composition, restrained warm color, and natural detail. Keep the main subject near the center so the image still reads well when cropped. Leave the lower quarter visually calm for the app's separate headline overlay.
+
+Absolutely no visible writing or typography: no words, letters, numbers, pseudo-text, logo, brand mark, watermark, caption, call-to-action, sign, label, or graphic overlay. Do not make a poster or any designed ad artwork. If a phone, monitor, or package appears, its screen or label must be blank and unbranded with no marks that resemble text. Do not invent product features, claims, or packaging. Avoid illustration, CGI, cartoon styling, plastic-looking surfaces, distorted hands, and excessive retouching.`,
     });
     const image = response.data?.[0]?.b64_json;
     if (!image) throw new Error("No image returned");
