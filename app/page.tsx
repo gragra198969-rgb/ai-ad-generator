@@ -87,6 +87,7 @@ function AdStudio() {
   const [adEdits, setAdEdits] = useState<Record<number, { headline: string; body: string; cta: string }>>({});
   const [adImages, setAdImages] = useState<Record<number, string>>({});
   const [adImageLoading, setAdImageLoading] = useState<number | null>(null);
+  const [confirmingAdImage, setConfirmingAdImage] = useState<number | null>(null);
   const [projectName, setProjectName] = useState("");
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
 
@@ -187,13 +188,29 @@ function AdStudio() {
   }
 
   function parsedAds() {
-    const chunks = result.split(/(?=AD #\\d+)/i).map((part) => part.trim()).filter(Boolean);
-    return chunks.map((chunk, index) => {
-      const headline = chunk.match(/Headline:\\s*([\\s\\S]*?)(?=\\n\\s*Body Copy:)/i)?.[1]?.trim() || `Ad idea ${index + 1}`;
-      const body = chunk.match(/Body Copy:\\s*([\\s\\S]*?)(?=\\n\\s*Call To Action:)/i)?.[1]?.trim() || chunk;
-      const cta = chunk.match(/Call To Action:\\s*([\\s\\S]*)$/i)?.[1]?.trim() || "";
-      return { headline, body, cta, raw: chunk };
-    });
+    const source = result.trim();
+    if (!source) return [];
+
+    const chunks = source
+      .split(/(?=^\s*(?:(?:CREATIVE DIRECTION|CONCEPT)\s*:|AD\s*#\s*\d+\s*$))/im)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    const labels = "Creative direction|Concept|Headline|Primary text|Body copy|Call to action|CTA";
+    const readField = (chunk: string, names: string[]) => {
+      const alternatives = names.join("|");
+      const pattern = new RegExp(`(?:^|\\n)\\s*(?:${alternatives})\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:${labels})\\s*:|$)`, "i");
+      return chunk.match(pattern)?.[1]?.replace(/\s+/g, " ").trim() || "";
+    };
+
+    const ads = chunks.map((chunk) => {
+      const concept = chunk.match(/^\s*(?:Creative direction|Concept)\s*:\s*([^\r\n]*)/im)?.[1]?.trim() || "";
+      const headline = readField(chunk, ["Headline"]) || "Campaign concept";
+      const body = readField(chunk, ["Primary text", "Body copy"]) || chunk;
+      const cta = readField(chunk, ["Call to action", "CTA"]);
+      return { concept, headline, body, cta, raw: chunk };
+    }).filter((ad) => ad.headline || ad.body);
+
+    return ads.length ? ads : [{ concept: "", headline: "Campaign concept", body: source, cta: "", raw: source }];
   }
 
   function editAd(index: number, field: "headline" | "body" | "cta", value: string) {
@@ -210,7 +227,13 @@ function AdStudio() {
   function adText(index: number) {
     const source = parsedAds()[index];
     const ad = { ...source, ...adEdits[index] };
-    return `Headline: ${ad.headline}\nBody Copy: ${ad.body}\nCall To Action: ${ad.cta}`;
+    return [
+      ad.concept ? `Creative direction: ${ad.concept}` : "",
+      `Headline: ${ad.headline}`,
+      `Primary text: ${ad.body}`,
+      `Call to action: ${ad.cta}`,
+      safeWebsite ? `Website: ${safeWebsite}` : "",
+    ].filter(Boolean).join("\n");
   }
 
   async function generateAdImage(index: number) {
@@ -244,7 +267,7 @@ function AdStudio() {
   }
 
   function currentEditedResult() {
-    return parsedAds().map((_, index) => `AD #${index + 1}\n${adText(index)}`).join("\n\n");
+    return parsedAds().map((_, index) => adText(index)).join("\n\n");
   }
 
   async function saveProject() {
@@ -463,7 +486,7 @@ function AdStudio() {
                     <ol className="mt-4 space-y-4">
                       {sampleCampaigns[sampleCategory].ads.map((ad, index) => (
                         <li key={ad.headline} className="border-t border-[#e8eae3] pt-3">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#779067]">Sample ad {index + 1}</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#779067]">Sample concept</p>
                           <h4 className="mt-1 text-sm font-semibold">{ad.headline}</h4>
                           <p className="mt-2 text-xs leading-5 text-[#60675b]">{ad.body}</p>
                           <p className="mt-2 text-xs font-semibold text-[#35563c]">{ad.cta}</p>
@@ -499,13 +522,13 @@ function AdStudio() {
                 <label className="text-xs font-semibold text-[#697064] sm:col-span-2">What makes it worth choosing?<span className="font-normal text-[#a0a399]"> (optional)</span><input value={benefit} onChange={(e) => setBenefit(e.target.value)} placeholder="A benefit, feeling, or detail customers value" className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#20231f] outline-none transition placeholder:text-[#b1b4ac] focus:border-[#91a783] focus:ring-4 focus:ring-[#dbe6d3]/60" /></label>
                 <label className="text-xs font-semibold text-[#697064]">Channel<select value={adType} onChange={(e) => setAdType(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#33382f] outline-none focus:border-[#91a783]"><option value="facebook">Facebook ad</option><option value="google">Google ad</option><option value="email">Email marketing</option><option value="tiktok">TikTok ad</option><option value="instagram">Instagram caption</option><option value="twitter">X / Twitter post</option><option value="linkedin">LinkedIn ad</option></select></label>
                 <label className="text-xs font-semibold text-[#697064]">Voice<select value={tone} onChange={(e) => setTone(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#33382f] outline-none focus:border-[#91a783]"><option value="friendly">Warm & friendly</option><option value="professional">Clear & professional</option><option value="exciting">Bright & energetic</option></select></label>
-                <label className="text-xs font-semibold text-[#697064]">Website <span className="font-normal text-[#a0a399]">(optional)</span><input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourwebsite.com" className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#20231f] outline-none transition placeholder:text-[#b1b4ac] focus:border-[#91a783] focus:ring-4 focus:ring-[#dbe6d3]/60" /></label>
+                <label className="text-xs font-semibold text-[#697064]">Destination website <span className="font-normal text-[#a0a399]">(optional)</span><input type="url" autoComplete="url" maxLength={500} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourwebsite.com" className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#20231f] outline-none transition placeholder:text-[#b1b4ac] focus:border-[#91a783] focus:ring-4 focus:ring-[#dbe6d3]/60" /><span className="mt-1.5 block text-[11px] font-normal leading-4 text-[#858a80]">Adds a clickable “Visit website” link to each idea.</span></label>
                 <label className="text-xs font-semibold text-[#697064]">Number of ideas<select value={adCount} onChange={(e) => setAdCount(e.target.value)} className="mt-2 w-full rounded-xl border border-[#e6e7e1] bg-[#fcfcfa] px-4 py-3 text-sm font-normal text-[#33382f] outline-none focus:border-[#91a783]"><option value="5">5 ideas</option><option value="10">10 ideas</option><option value="20">20 ideas</option></select></label>
               </div>
               {isSignedIn ? <button onClick={generateAds} disabled={loading || imageLoading || creditsLeft === 0} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <><span className="animate-spin">◌</span> Finding your angle…</> : creditsLeft === 0 ? "You’re out of generations" : "✳ Create my ad ideas"}</button> : <SignUpButton mode="modal"><button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Create a free account to start ↗</button></SignUpButton>}
               <div className="mt-5 rounded-2xl border border-[#e6e9df] bg-[#fbfcf9] p-5">
                 <h4 className="font-semibold text-[#344332]">Add a picture to your ad</h4>
-                <p className="mt-2 text-xs leading-5 text-[#60675b]">Create a square image from the product, audience, and style above. Each picture uses 1 credit. Download it before leaving; pictures are not saved to your workspace yet.</p>
+                <p className="mt-2 text-xs leading-5 text-[#60675b]">Create a square image from the details above. Each image uses 1 generation credit and creates a separate OpenAI API charge billed to the business. Download it before leaving; pictures are not saved to your workspace yet.</p>
                 {isSignedIn ? <button type="button" onClick={generatePicture} disabled={imageLoading || loading || creditsLeft === 0} className="mt-4 w-full rounded-xl border border-[#35563c] px-5 py-3 text-sm font-semibold text-[#35563c] transition hover:bg-[#edf3e8] disabled:cursor-not-allowed disabled:opacity-55">{imageLoading ? "Creating your picture…" : creditsLeft === 0 ? "You’re out of generations" : "Generate picture · 1 credit"}</button> : <p className="mt-3 text-xs text-[#60675b]">Sign in or create a free account above to generate pictures.</p>}
                 <p aria-live="polite" role="status" className="mt-3 text-sm text-[#53624c]">{imageLoading ? "This can take a couple of minutes. Keep this page open." : imageMessage}</p>
                 {generatedImage && <figure className="mt-4">
@@ -526,7 +549,7 @@ function AdStudio() {
                   <div><p className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#71836a]">{brandName || "Your brand"} · campaign</p><h4 className="mt-2 text-2xl font-semibold tracking-tight text-[#30402e]">{benefit || product}</h4><p className="mt-2 text-xs text-[#6e776a]">Generate a picture above to turn this into a visual ad.</p></div>
                 </div>}
                 <div className="p-5 sm:p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign-ready copy</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex flex-wrap gap-2"><input aria-label="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={brandName || product || "Project name"} className="min-w-36 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs text-[#344332] outline-none focus:border-[#91a783]" /><button type="button" onClick={saveProject} className="rounded-full bg-[#35563c] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#28452f]">{activeProjectId ? "Update project" : "Save project"}</button><button onClick={() => copyAd()} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([result], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#779067]">Campaign concepts</p><h4 className="mt-1 font-semibold text-[#344332]">{brandName || product}</h4></div><div className="flex flex-wrap gap-2"><input aria-label="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder={brandName || product || "Project name"} className="min-w-36 rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs text-[#344332] outline-none focus:border-[#91a783]" /><button type="button" onClick={saveProject} className="rounded-full bg-[#35563c] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#28452f]">{activeProjectId ? "Update project" : "Save project"}</button><button onClick={() => copyAd(currentEditedResult())} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy text</button><button onClick={() => { const blob = new Blob([currentEditedResult()], { type: "text/plain" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "ads.txt"; link.click(); URL.revokeObjectURL(url); }} className="rounded-full border border-[#dfe4d9] px-3 py-1.5 text-xs font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Download copy</button></div></div>
                   <div className="mt-5 grid gap-4">
                     {parsedAds().map((ad, index) => (
                       <article key={`${ad.headline}-${index}`} className="overflow-hidden rounded-[1.5rem] border border-[#dde4d7] bg-white shadow-[0_16px_40px_-30px_rgba(40,55,36,.45)]">
@@ -541,8 +564,8 @@ function AdStudio() {
                           {(adImages[index] || generatedImage) ? <Image src={adImages[index] || generatedImage} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
                         </div>
                         <div className="p-5 sm:p-6">
-                          <label className="block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Headline · tap to edit</span><input value={adEdits[index]?.headline ?? ad.headline} onChange={(event) => editAd(index, "headline", event.target.value)} className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
-                          <label className="mt-3 block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Ad copy · tap to edit</span><textarea value={adEdits[index]?.body ?? ad.body} onChange={(event) => editAd(index, "body", event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-transparent bg-transparent px-0 text-sm leading-6 text-[#596354] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
+                          {ad.concept && <p className="mb-3 text-xs font-semibold uppercase tracking-[.12em] text-[#819174]">Creative direction · {ad.concept}</p>}<label className="block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Headline · tap to edit</span><input value={adEdits[index]?.headline ?? ad.headline} onChange={(event) => editAd(index, "headline", event.target.value)} className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
+                          <label className="mt-3 block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Primary text · tap to edit</span><textarea value={adEdits[index]?.body ?? ad.body} onChange={(event) => editAd(index, "body", event.target.value)} rows={4} className="mt-1 w-full resize-y rounded-lg border border-transparent bg-transparent px-0 text-sm leading-6 text-[#596354] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
                           <div className="mt-5 flex flex-col gap-3 border-t border-[#e7ebe2] pt-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="min-w-0">
                               {safeWebsite && <p className="truncate text-[10px] uppercase tracking-[.12em] text-[#92998d]">{safeWebsite.replace(/^https?:\/\//i, "")}</p>}
@@ -551,9 +574,8 @@ function AdStudio() {
                             {safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg bg-[#35563c] px-5 py-2.5 text-center text-xs font-semibold text-white hover:bg-[#28452f]">Learn more ↗</a>}
                           </div>
                         </div>
-                        <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={() => generateAdImage(index)} disabled={adImageLoading !== null || creditsLeft === 0} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">{adImageLoading === index ? "Creating image…" : adImages[index] ? "Regenerate image · 1 credit" : "Generate image · 1 credit"}</button>
+                        <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">{confirmingAdImage === index && <div className="mb-3 rounded-xl border border-[#e5eadf] bg-[#f7f8f4] p-3"><p className="text-xs leading-5 text-[#687064]">This creates one image and uses 1 generation credit. A separate OpenAI API charge is billed to the business; the amount varies by image.</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setConfirmingAdImage(null); void generateAdImage(index); }} className="rounded-full bg-[#35563c] px-3 py-2 text-xs font-semibold text-white">Generate image</button><button type="button" onClick={() => setConfirmingAdImage(null)} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a]">Cancel</button></div></div>}<div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => setConfirmingAdImage(index)} disabled={adImageLoading !== null || creditsLeft === 0} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">{adImageLoading === index ? "Creating image…" : adImages[index] ? "Regenerate image · 1 credit" : "Generate image · 1 credit"}</button>
                             <button type="button" onClick={() => copyAd(adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy ad</button>
                             <span className="mr-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#9aa094]">Post to</span>
                             <button type="button" onClick={() => shareAd("facebook", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>

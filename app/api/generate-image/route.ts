@@ -71,18 +71,16 @@ export async function POST(req: Request) {
       size: "1024x1024",
       quality: "low",
       n: 1,
-      prompt: `Create a polished square advertising concept image.
+      prompt: `Create a square photorealistic commercial advertising photograph.
 Product or service: ${details.product}
 Audience: ${details.audience}
-Benefit or creative direction: ${details.benefit || "Focus on the product"}
+Benefit or creative direction: ${details.benefit || "A natural product moment"}
 Brand: ${details.brandName || "No brand specified"}
 Channel: ${details.adType || "social media"}
 Tone: ${details.tone || "friendly"}
 
-Use a clear focal point, a cohesive palette, and space for ad copy.
-Create an illustrative concept, not a claim to depict an actual product photograph.
-Do not invent testimonials, certifications, prices, discounts, or medical claims.
-Avoid text, logos, and watermarks in the image.`,
+Use a believable everyday setting, natural light, authentic materials, realistic proportions, reflections, and contact shadows. Give the subject a clear focal point, with warm editorial color and clean space for separately typeset ad copy. Make the result feel like a real photograph, not a stock template.
+Do not invent product features or packaging. If packaging is not described, keep it neutral and unbranded. Do not render text, logos, watermarks, testimonials, statistics, or unsupported claims. Avoid illustration, CGI, cartoon styling, plastic-looking surfaces, and excessive retouching.`,
     });
     const image = response.data?.[0]?.b64_json;
     if (!image) throw new Error("No image returned");
