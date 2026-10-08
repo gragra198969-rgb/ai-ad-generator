@@ -11,13 +11,18 @@ const nativeRequire = createRequire(import.meta.url);
 // Execute the actual TypeScript route handlers with isolated auth/provider
 // boundaries and a PostgreSQL engine, never production accounts or services.
 function harness(db) {
-  const state = { userId: 'alice', providerCalls: 0, failProvider: false };
+  const state = { userId: 'alice', providerCalls: 0, failProvider: false, imageProviderCalls: 0, failImageProvider: false };
   const cache = new Map();
   const sql = async (strings, ...values) => {
     const query = strings.reduce((out, text, i) => out + (i ? `$${i}` : '') + text, '');
     return (await db.query(query, values)).rows;
   };
   const openai = class {
+    images = { generate: async () => {
+      state.imageProviderCalls++;
+      if (state.failImageProvider) throw new Error('private-image-provider-details');
+      return { data: [{ b64_json: 'c2FtcGxl' }] };
+    } };
     chat = { completions: { create: async () => {
       state.providerCalls++;
       if (state.failProvider) throw new Error('private-provider-details');
@@ -90,7 +95,60 @@ test('parallel text requests reserve the last credit once and save with server-d
     assert.equal(responses.filter(r => r.status === 403).length, 3);
     assert.equal(state.providerCalls, 1);
     assert.deepEqual((await db.query('SELECT clerk_user_id FROM ads')).rows, [{ clerk_user_id: 'alice' }]);
+    assert.equal((await responses.find(r => r.status === 200).json()).adId, 1);
     assert.equal((await db.query('SELECT ads_used FROM users')).rows[0].ads_used, 1);
+  } finally { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; await db.close(); }
+});
+
+test('free accounts get one image total and Pro images consume one credit per idea', async () => {
+  const db = await database();
+  const oldKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'test-only';
+  try {
+    const { load, state } = harness(db);
+    await load('app/lib/ad-security.ts').ensureAdOwnership();
+    const aliceAds = [];
+    for (const product of ['Coffee', 'Tea', 'Bread', 'Fruit']) {
+      aliceAds.push((await db.query(`INSERT INTO ads (clerk_user_id, product, ad_count) VALUES ('alice', $1, 5) RETURNING id`, [product])).rows[0].id);
+    }
+    await db.exec(`INSERT INTO users VALUES ('alice', 10, 10)`);
+    await db.exec(`INSERT INTO users VALUES ('bob', 0, 1000)`);
+    const { POST } = load('app/api/generate-image/route.ts');
+    const imageRequest = (adId, adIndex) => new Request('https://example.com/api/generate-image', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ adId, adIndex, product: 'Coffee', audience: 'Readers', benefit: 'A cozy morning ritual' }),
+    });
+
+    const freeAttempts = await Promise.all([POST(imageRequest(aliceAds[0], 0)), POST(imageRequest(aliceAds[1], 0))]);
+    assert.deepEqual(freeAttempts.map(response => response.status).sort(), [200, 403]);
+    assert.equal(state.imageProviderCalls, 1);
+    assert.equal((await db.query(`SELECT count(*)::int AS n FROM free_image_generation_claims WHERE clerk_user_id = 'alice'`)).rows[0].n, 1);
+    assert.equal((await db.query(`SELECT ads_used FROM users WHERE clerk_user_id = 'alice'`)).rows[0].ads_used, 10);
+    assert.equal((await POST(imageRequest(aliceAds[2], 0))).status, 403);
+    assert.equal(state.imageProviderCalls, 1);
+
+    state.userId = 'bob';
+    assert.equal((await POST(imageRequest(aliceAds[0], 0))).status, 404);
+    assert.equal(state.imageProviderCalls, 1);
+    state.userId = 'alice';
+    await db.exec(`DELETE FROM request_limits`);
+    await db.exec(`UPDATE users SET ads_limit = 1000, ads_used = 0 WHERE clerk_user_id = 'alice'`);
+
+    const simultaneous = await Promise.all([POST(imageRequest(aliceAds[2], 0)), POST(imageRequest(aliceAds[2], 0))]);
+    assert.deepEqual(simultaneous.map(response => response.status).sort(), [200, 409]);
+    assert.equal((await simultaneous.find(response => response.status === 200).json()).image, 'data:image/png;base64,c2FtcGxl');
+    assert.equal((await POST(imageRequest(aliceAds[2], 0))).status, 409);
+    assert.equal(state.imageProviderCalls, 2);
+    assert.equal((await db.query(`SELECT ads_used FROM users WHERE clerk_user_id = 'alice'`)).rows[0].ads_used, 1);
+
+    state.failImageProvider = true;
+    const failed = await POST(imageRequest(aliceAds[3], 0));
+    assert.equal(failed.status, 502);
+    assert.equal((await failed.text()).includes('private-image-provider-details'), false);
+    assert.equal((await POST(imageRequest(aliceAds[3], 0))).status, 409);
+    assert.equal(state.imageProviderCalls, 3);
+    assert.equal((await db.query(`SELECT ads_used FROM users WHERE clerk_user_id = 'alice'`)).rows[0].ads_used, 1);
+    assert.deepEqual((await db.query(`SELECT status FROM ad_image_generation_slots WHERE clerk_user_id = 'alice' ORDER BY ad_id, ad_index`)).rows, [{ status: 'generated' }, { status: 'generated' }, { status: 'failed' }]);
   } finally { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; await db.close(); }
 });
 
@@ -190,3 +248,4 @@ test('Stripe requires a valid signature and paid invoice; duplicate delivery can
     await db.close();
   }
 });
+

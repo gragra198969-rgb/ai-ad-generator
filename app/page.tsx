@@ -6,6 +6,7 @@ import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 
 type SavedAd = {
   id: number;
+  image_generated_indices?: number[];
   brand_name?: string;
   product?: string;
   generated_ads?: string;
@@ -73,6 +74,7 @@ function AdStudio() {
   const [adType, setAdType] = useState("facebook");
   const [adCount, setAdCount] = useState("5");
   const [result, setResult] = useState("");
+  const [currentAdId, setCurrentAdId] = useState<number | null>(null);
   const [generatedImage, setGeneratedImage] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
   const [imageMessage, setImageMessage] = useState("");
@@ -81,6 +83,9 @@ function AdStudio() {
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [creditsLeft, setCreditsLeft] = useState<number | null>(null);
+  const [adsLimit, setAdsLimit] = useState<number | null>(null);
+  const [freeImageAvailable, setFreeImageAvailable] = useState<boolean | null>(null);
+  const [lockedAdImages, setLockedAdImages] = useState<Record<number, boolean>>({});
   const [savedAds, setSavedAds] = useState<SavedAd[]>([]);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [sampleCategory, setSampleCategory] = useState<keyof typeof sampleCampaigns>("home");
@@ -91,6 +96,9 @@ function AdStudio() {
   const [projectName, setProjectName] = useState("");
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
 
+  const canGenerateProImages = adsLimit !== null && adsLimit > 10;
+  const canGenerateAnyImage = adsLimit !== null && (canGenerateProImages ? (creditsLeft ?? 0) > 0 : freeImageAvailable === true);
+
   useEffect(() => {
     if (!isSignedIn) return;
     let cancelled = false;
@@ -100,7 +108,7 @@ function AdStudio() {
         const userData = await userResponse.json();
         const adsData = await adsResponse.json();
         if (cancelled) return;
-        if (userResponse.ok) setCreditsLeft(Number(userData.ads_limit) - Number(userData.ads_used));
+        if (userResponse.ok) { setAdsLimit(Number(userData.ads_limit)); setCreditsLeft(Number(userData.ads_limit) - Number(userData.ads_used)); setFreeImageAvailable(Boolean(userData.free_image_available)); }
         if (adsResponse.ok && Array.isArray(adsData)) setSavedAds(adsData);
       } catch {
         if (!cancelled) setMessage("We couldn’t load your saved work. Please refresh and try again.");
@@ -129,13 +137,19 @@ function AdStudio() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.result || "Ad generation failed. Please try again.");
+      const savedAdId = Number(data.adId);
+      if (!Number.isSafeInteger(savedAdId) || savedAdId < 1) throw new Error("Your ad was created, but we couldn’t link its image controls. Refresh and try again.");
+      setCurrentAdId(savedAdId);
       setResult(data.result || "No ad was returned. Please try again.");
       setAdEdits({});
       setAdImages({});
+      setLockedAdImages({});
       const userResponse = await fetch("/api/user");
       if (userResponse.ok) {
         const userData = await userResponse.json();
+        setAdsLimit(Number(userData.ads_limit));
         setCreditsLeft(Number(userData.ads_limit) - Number(userData.ads_used));
+        setFreeImageAvailable(Boolean(userData.free_image_available));
       }
       const adsResponse = await fetch("/api/ads");
       if (adsResponse.ok) {
@@ -151,6 +165,14 @@ function AdStudio() {
 
   async function generatePicture() {
     setImageMessage("");
+    if (canGenerateProImages) {
+      setImageMessage("For Pro images, use the button under an ad to review the credit and provider cost first.");
+      return;
+    }
+    if (!currentAdId) {
+      setImageMessage("Create ad ideas first, then generate an image for the first idea.");
+      return;
+    }
     if (!isSignedIn) {
       setImageMessage("Sign in to generate a picture.");
       return;
@@ -165,12 +187,15 @@ function AdStudio() {
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product, audience, benefit, brandName, adType, tone }),
+        body: JSON.stringify({ adId: currentAdId, adIndex: 0, product, audience, benefit, brandName, adType, tone }),
       });
       const data = await response.json();
       if (!response.ok || !data.image) throw new Error(data.error || "Picture generation failed.");
       setGeneratedImage(data.image);
-      setImageMessage("Your picture is ready. Download it to keep a copy.");
+      setAdImages((current) => ({ ...current, 0: data.image }));
+      setLockedAdImages((current) => ({ ...current, 0: true }));
+      setFreeImageAvailable(false);
+      setImageMessage("Your one free image is ready. Download it to keep a copy.");
     } catch (error) {
       setImageMessage(error instanceof Error ? error.message : "Picture generation failed. Please try again.");
     } finally {
@@ -178,7 +203,9 @@ function AdStudio() {
         const response = await fetch("/api/user");
         if (response.ok) {
           const account = await response.json();
+          setAdsLimit(Number(account.ads_limit));
           setCreditsLeft(Number(account.ads_limit) - Number(account.ads_used));
+          setFreeImageAvailable(Boolean(account.free_image_available));
         }
       } catch {
         // Keep the generation result available if the balance refresh fails.
@@ -239,19 +266,22 @@ function AdStudio() {
   async function generateAdImage(index: number) {
     const source = parsedAds()[index];
     const ad = { ...source, ...adEdits[index] };
-    if (adImageLoading !== null || imageLoading || loading) return;
+    if (!currentAdId || !canGenerateAnyImage || lockedAdImages[index] || adImageLoading !== null || imageLoading || loading) return;
     setAdImageLoading(index);
     setMessage("");
     try {
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product, audience, benefit: `${benefit}\nAd headline: ${ad.headline}\nAd message: ${ad.body}\nCTA: ${ad.cta}`, brandName, adType, tone }),
+        body: JSON.stringify({ adId: currentAdId, adIndex: index, product, audience, benefit: `${benefit}\nAd headline: ${ad.headline}\nAd message: ${ad.body}\nCTA: ${ad.cta}`, brandName, adType, tone }),
       });
       const data = await response.json();
+      if (response.status === 409 || data.retryAllowed === false) setLockedAdImages((current) => ({ ...current, [index]: true }));
       if (!response.ok || !data.image) throw new Error(data.error || "Picture generation failed.");
       setAdImages((current) => ({ ...current, [index]: data.image }));
-      setMessage(`A unique image was created for this ad.`);
+      setLockedAdImages((current) => ({ ...current, [index]: true }));
+      if (!canGenerateProImages) setFreeImageAvailable(false);
+      setMessage(canGenerateProImages ? "A unique image was created for this ad. One Pro credit was used." : "Your one free image was created.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Picture generation failed. Please try again.");
     } finally {
@@ -259,7 +289,9 @@ function AdStudio() {
         const response = await fetch("/api/user");
         if (response.ok) {
           const account = await response.json();
+          setAdsLimit(Number(account.ads_limit));
           setCreditsLeft(Number(account.ads_limit) - Number(account.ads_used));
+          setFreeImageAvailable(Boolean(account.free_image_available));
         }
       } catch {}
       setAdImageLoading(null);
@@ -290,6 +322,8 @@ function AdStudio() {
   }
 
   function openProject(ad: SavedAd) {
+    setCurrentAdId(ad.id);
+    setLockedAdImages(Object.fromEntries((ad.image_generated_indices || []).map((index) => [Number(index), true])));
     setActiveProjectId(ad.id);
     setProjectName(ad.project_name || ad.brand_name || ad.product || "Campaign");
     setBrandName(ad.brand_name || "");
@@ -527,9 +561,9 @@ function AdStudio() {
               </div>
               {isSignedIn ? <button onClick={generateAds} disabled={loading || imageLoading || creditsLeft === 0} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f] disabled:cursor-not-allowed disabled:opacity-55">{loading ? <><span className="animate-spin">◌</span> Finding your angle…</> : creditsLeft === 0 ? "You’re out of generations" : "✳ Create my ad ideas"}</button> : <SignUpButton mode="modal"><button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#35563c] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-[#28452f]">Create a free account to start ↗</button></SignUpButton>}
               <div className="mt-5 rounded-2xl border border-[#e6e9df] bg-[#fbfcf9] p-5">
-                <h4 className="font-semibold text-[#344332]">Add a picture to your ad</h4>
-                <p className="mt-2 text-xs leading-5 text-[#60675b]">Create a square image from the details above. Each image uses 1 generation credit and creates a separate OpenAI API charge billed to the business. Download it before leaving; pictures are not saved to your workspace yet.</p>
-                {isSignedIn ? <button type="button" onClick={generatePicture} disabled={imageLoading || loading || creditsLeft === 0} className="mt-4 w-full rounded-xl border border-[#35563c] px-5 py-3 text-sm font-semibold text-[#35563c] transition hover:bg-[#edf3e8] disabled:cursor-not-allowed disabled:opacity-55">{imageLoading ? "Creating your picture…" : creditsLeft === 0 ? "You’re out of generations" : "Generate picture · 1 credit"}</button> : <p className="mt-3 text-xs text-[#60675b]">Sign in or create a free account above to generate pictures.</p>}
+                <h4 className="font-semibold text-[#344332]">One free image, then Pro</h4>
+                <p className="mt-2 text-xs leading-5 text-[#60675b]">Free accounts get one image generation total, linked to the first ad idea. Pro members can create one image per ad with 1 included credit. Image-provider API usage is billed to the business; customers are not charged a separate image fee.</p>
+                {isSignedIn ? <button type="button" onClick={generatePicture} disabled={imageLoading || loading || !currentAdId || !canGenerateAnyImage || canGenerateProImages || lockedAdImages[0]} className="mt-4 w-full rounded-xl border border-[#35563c] px-5 py-3 text-sm font-semibold text-[#35563c] transition hover:bg-[#edf3e8] disabled:cursor-not-allowed disabled:opacity-55">{imageLoading ? "Creating your picture…" : adsLimit === null ? "Checking access…" : canGenerateProImages ? "Use the button under a Pro ad" : freeImageAvailable ? "Generate your 1 free image" : "Free image used · Pro required"}</button> : <p className="mt-3 text-xs text-[#60675b]">Sign in or create a free account above to generate pictures.</p>}
                 <p aria-live="polite" role="status" className="mt-3 text-sm text-[#53624c]">{imageLoading ? "This can take a couple of minutes. Keep this page open." : imageMessage}</p>
                 {generatedImage && <figure className="mt-4">
                   <Image src={generatedImage} alt="AI-generated advertising concept from your product brief" width={1024} height={1024} unoptimized className="h-auto w-full rounded-xl" />
@@ -561,7 +595,7 @@ function AdStudio() {
                           <span className="rounded-full bg-[#f0f4ec] px-2.5 py-1 text-[10px] font-semibold text-[#607458]">Ad preview</span>
                         </div>
                         <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-[#dfe9d6] via-[#f1eadf] to-[#d8e6e1] sm:aspect-[16/9]">
-                          {(adImages[index] || generatedImage) ? <Image src={adImages[index] || generatedImage} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
+                          {(adImages[index]) ? <Image src={adImages[index]} alt="Generated campaign visual" fill unoptimized className="object-cover" /> : <div className="absolute inset-0 flex items-end p-6"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#71836a]">{brandName || product}</p><p className="mt-2 max-w-sm text-2xl font-semibold leading-tight tracking-tight text-[#30402e]">{ad.headline}</p><p className="mt-2 text-xs text-[#6e776a]">Generate a campaign picture above to complete this visual.</p></div></div>}
                         </div>
                         <div className="p-5 sm:p-6">
                           {ad.concept && <p className="mb-3 text-xs font-semibold uppercase tracking-[.12em] text-[#819174]">Creative direction · {ad.concept}</p>}<label className="block"><span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#899383]">Headline · tap to edit</span><input value={adEdits[index]?.headline ?? ad.headline} onChange={(event) => editAd(index, "headline", event.target.value)} className="mt-1 w-full rounded-lg border border-transparent bg-transparent px-0 text-2xl font-semibold leading-tight tracking-[-.025em] text-[#2d392b] outline-none transition focus:border-[#dbe3d4] focus:bg-[#fbfcf9] focus:px-3 focus:py-2" /></label>
@@ -574,8 +608,8 @@ function AdStudio() {
                             {safeWebsite && <a href={safeWebsite} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg bg-[#35563c] px-5 py-2.5 text-center text-xs font-semibold text-white hover:bg-[#28452f]">Learn more ↗</a>}
                           </div>
                         </div>
-                        <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">{confirmingAdImage === index && <div className="mb-3 rounded-xl border border-[#e5eadf] bg-[#f7f8f4] p-3"><p className="text-xs leading-5 text-[#687064]">This creates one image and uses 1 generation credit. A separate OpenAI API charge is billed to the business; the amount varies by image.</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setConfirmingAdImage(null); void generateAdImage(index); }} className="rounded-full bg-[#35563c] px-3 py-2 text-xs font-semibold text-white">Generate image</button><button type="button" onClick={() => setConfirmingAdImage(null)} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a]">Cancel</button></div></div>}<div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={() => setConfirmingAdImage(index)} disabled={adImageLoading !== null || creditsLeft === 0} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">{adImageLoading === index ? "Creating image…" : adImages[index] ? "Regenerate image · 1 credit" : "Generate image · 1 credit"}</button>
+                        <div className="border-t border-[#edf0e9] bg-[#fafbf8] px-4 py-3">{confirmingAdImage === index && canGenerateProImages && <div className="mb-3 rounded-xl border border-[#e5eadf] bg-[#f7f8f4] p-3"><p className="text-xs leading-5 text-[#687064]">This image uses 1 existing Pro credit. The image-provider API cost is billed to the business.</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => { setConfirmingAdImage(null); void generateAdImage(index); }} className="rounded-full bg-[#35563c] px-3 py-2 text-xs font-semibold text-white">Generate image</button><button type="button" onClick={() => setConfirmingAdImage(null)} className="rounded-full border border-[#dfe4d9] px-3 py-2 text-xs font-semibold text-[#52664a]">Cancel</button></div></div>}<div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => canGenerateProImages ? setConfirmingAdImage(index) : void generateAdImage(index)} disabled={adImageLoading !== null || !canGenerateAnyImage || !currentAdId || Boolean(lockedAdImages[index])} className="rounded-full bg-[#35563c] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">{adImageLoading === index ? "Creating image…" : adImages[index] ? (canGenerateProImages ? "Image created · 1 credit used" : "Your free image") : lockedAdImages[index] ? "Image request used" : adsLimit === null ? "Checking access…" : canGenerateProImages ? creditsLeft === 0 ? "No Pro credits" : "Generate image · 1 Pro credit" : freeImageAvailable === null ? "Checking access…" : freeImageAvailable ? "Generate your 1 free image" : "Free image used · Pro required"}</button>
                             <button type="button" onClick={() => copyAd(adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a] hover:bg-[#f1f4ed]">Copy ad</button>
                             <span className="mr-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#9aa094]">Post to</span>
                             <button type="button" onClick={() => shareAd("facebook", adText(index))} className="rounded-full border border-[#dfe4d9] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#52664a]">Facebook ↗</button>

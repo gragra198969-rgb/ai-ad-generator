@@ -132,11 +132,12 @@ const prompt = [
         "\nPrimary text: " + primaryText +
         "\nCall to action: " + callToAction;
     }).join("\n\n");
-    await sql`
+    const insertedAds = await sql`
       INSERT INTO ads (clerk_user_id, brand_name, product, audience, benefit, website, tone, ad_type, ad_count, generated_ads)
       VALUES (${userId}, ${brandName}, ${product}, ${audience}, ${benefit}, ${website}, ${tone}, ${adType}, ${totalAds}, ${result})
+      RETURNING id
     `;
-    return Response.json({ result });
+    return Response.json({ result, adId: Number(insertedAds[0]?.id) });
   } catch (error) {
     if (reserved) {
       try {
