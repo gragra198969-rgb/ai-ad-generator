@@ -10,6 +10,29 @@ export function ensureAdOwnership() {
   return schemaReady;
 }
 
+let imageSlotSchemaReady: Promise<void> | undefined;
+export function ensureAdImageGenerationSlots() {
+  imageSlotSchemaReady ??= (async () => {
+    await ensureAdOwnership();
+    await sql`CREATE TABLE IF NOT EXISTS ad_image_generation_slots (
+      ad_id INTEGER NOT NULL REFERENCES ads(id) ON DELETE CASCADE,
+      ad_index INTEGER NOT NULL CHECK (ad_index >= 0 AND ad_index < 20),
+      clerk_user_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('generating', 'generated', 'failed')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (ad_id, ad_index)
+    )`;
+    await sql`CREATE TABLE IF NOT EXISTS free_image_generation_claims (
+      clerk_user_id TEXT PRIMARY KEY,
+      ad_id INTEGER NOT NULL,
+      ad_index INTEGER NOT NULL CHECK (ad_index >= 0 AND ad_index < 20),
+      status TEXT NOT NULL CHECK (status IN ('generating', 'generated', 'failed')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`;
+  })().catch((error) => { imageSlotSchemaReady = undefined; throw error; });
+  return imageSlotSchemaReady;
+}
+
 let rateSchemaReady: Promise<void> | undefined;
 export async function allowRequest(userId: string, action: string, limit: number) {
   rateSchemaReady ??= (async () => {
@@ -31,3 +54,4 @@ export async function allowRequest(userId: string, action: string, limit: number
   `;
   return rows.length > 0;
 }
+
