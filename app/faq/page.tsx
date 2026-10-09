@@ -8,15 +8,15 @@ export default function FAQPage() {
     },
     {
       question: "Do I need an account?",
-      answer: "Yes. Sign in to generate ads, keep a record of your saved campaigns, and see your remaining monthly generations.",
+      answer: "Yes. Sign in to create ads, manage your credits, and keep a record of your saved campaigns.",
     },
     {
       question: "How does the free plan work?",
-      answer: "The free plan includes up to 10 generations. Each generation can return 5, 10, or 20 copy ideas. Your available balance appears in the ad studio after you sign in.",
+      answer: "The free plan includes 10 credits. One ad-generation batch uses 1 credit, regardless of whether it returns 5, 10, or 20 copy ideas. Each generated image also uses 1 credit.",
     },
     {
       question: "What is included in Pro?",
-      answer: "Pro is listed at $19.99 per month and includes 1,000 generations each billing month. Your limit resets after Stripe confirms each monthly payment; when the subscription ends, the account returns to the free limit. Review the subscription details in Stripe checkout before subscribing.",
+      answer: "Pro is $9.99 per month and includes 150 credits per billing cycle. An ad-generation batch or one generated image uses 1 credit. The new plan applies to new subscriptions after checkout is configured; existing subscribers keep their current provider terms.",
     },
     {
       question: "Can I create customer surveys today?",
