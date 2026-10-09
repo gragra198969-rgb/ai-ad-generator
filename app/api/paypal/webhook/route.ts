@@ -77,7 +77,12 @@ export async function POST(request: Request) {
     ) {
       const subscription = await getPayPalSubscription(tokenForLookup, subscriptionId);
       const userId = subscription.custom_id;
-      if (!userId || subscription.plan_id !== process.env.PAYPAL_PLAN_ID) {
+      const creditLimit = subscription.plan_id === process.env.PAYPAL_NEW_PLAN_ID
+        ? 150
+        : subscription.plan_id === process.env.PAYPAL_PLAN_ID
+          ? 1000
+          : null;
+      if (!userId || creditLimit === null) {
         return Response.json({ received: true });
       }
 
@@ -90,7 +95,7 @@ export async function POST(request: Request) {
           SET status = EXCLUDED.status, updated_at = NOW()
         `;
         if (subscription.status === "ACTIVE" && event.resource?.id) {
-          await applyCreditEvent("paypal", `sale:${event.resource.id}`, userId, true);
+          await applyCreditEvent("paypal", `sale:${event.resource.id}`, userId, true, creditLimit);
         }
       } else if (["CANCELLED", "SUSPENDED", "EXPIRED"].includes(subscription.status)) {
         await sql`
