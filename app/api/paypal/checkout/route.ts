@@ -9,7 +9,8 @@ export async function POST(req: Request) {
   if (!userId) return Response.json({ error: "Sign in to subscribe." }, { status: 401 });
 
   const origin = process.env.NEXT_PUBLIC_URL;
-  if (!origin || !process.env.PAYPAL_NEW_PLAN_ID) return Response.json({ error: "The $9.99 PayPal Pro plan is not configured yet." }, { status: 503 });
+  const planId = process.env.PAYPAL_NEW_PLAN_ID;
+  if (!origin || !planId) return Response.json({ error: "The $9.99 PayPal Pro plan is not configured yet." }, { status: 503 });
 
   try {
     assertSameOrigin(req);
@@ -40,11 +41,12 @@ export async function POST(req: Request) {
       UPDATE paypal_subscriptions SET status = 'EXPIRED', updated_at = NOW()
       WHERE clerk_user_id = ${userId}
         AND status = 'APPROVAL_PENDING'
-        AND updated_at < NOW() - INTERVAL '30 minutes'
+        AND (plan_id <> ${planId} OR updated_at < NOW() - INTERVAL '30 minutes')
     `;
     const [pending] = await sql`
       SELECT approval_url FROM paypal_subscriptions
       WHERE clerk_user_id = ${userId}
+        AND plan_id = ${planId}
         AND status = 'APPROVAL_PENDING'
         AND updated_at >= NOW() - INTERVAL '30 minutes'
       ORDER BY updated_at DESC LIMIT 1
@@ -52,7 +54,6 @@ export async function POST(req: Request) {
     if (pending?.approval_url) return Response.json({ url: pending.approval_url });
 
     const token = await getPayPalAccessToken();
-    const planId = process.env.PAYPAL_NEW_PLAN_ID;
     const planResponse = await fetch(`${PAYPAL_API_BASE}/v1/billing/plans/${encodeURIComponent(planId)}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
     };
     const regularCycles = plan.billing_cycles?.filter((cycle) => cycle.tenure_type === "REGULAR") ?? [];
     const regular = regularCycles[0];
-    if (plan.status !== "ACTIVE" || regularCycles.length !== 1 ||
+    if (plan.status !== "ACTIVE" || (plan.billing_cycles?.length ?? 0) !== 1 || regularCycles.length !== 1 ||
         regular?.frequency?.interval_unit !== "MONTH" || regular.frequency.interval_count !== 1 ||
         regular.pricing_scheme?.fixed_price?.currency_code !== "USD" ||
         Number(regular.pricing_scheme.fixed_price.value) !== 9.99) {
