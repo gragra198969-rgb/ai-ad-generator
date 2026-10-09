@@ -247,7 +247,7 @@ Redeploy after environment changes; public variables, including PayPal button vi
 
 Run `npm run lint` and `npm run build` with configuration present. No automated test script is currently defined.
 
-For an end-to-end check, sign in with a test user, generate a batch, confirm usage increases by one, view it in the dashboard, and download the text. Test each payment provider independently: confirm the webhook changes `GET /api/user` to a 1,000 allowance, a later paid renewal resets usage, and subscription cancellation/deletion returns it to 10. Refresh the dashboard after webhook processing.
+For an end-to-end check, sign in with a test user, generate a batch, confirm usage increases by one, view it in the dashboard, and download the text. Test each payment provider independently: confirm a new-plan paid webhook sets the allowance to 150, a later paid renewal resets usage, and subscription cancellation/deletion returns it to 10. Legacy subscribers on the old plan remain on their 1,000-credit allowance. Refresh the dashboard after webhook processing.
 
 | Symptom | Check |
 | --- | --- |
