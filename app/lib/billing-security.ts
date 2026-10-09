@@ -1,7 +1,7 @@
 import { sql } from "@/app/lib/db";
 
 let ready: Promise<void> | undefined;
-export async function applyCreditEvent(provider: string, eventId: string, userId: string, paid: boolean) {
+export async function applyCreditEvent(provider: string, eventId: string, userId: string, paid: boolean, creditLimit = 1000) {
   ready ??= (async () => {
     await sql`CREATE TABLE IF NOT EXISTS billing_credit_events (
       provider TEXT NOT NULL, event_id TEXT NOT NULL,
@@ -19,8 +19,8 @@ export async function applyCreditEvent(provider: string, eventId: string, userId
         VALUES (${provider}, ${eventId}) ON CONFLICT DO NOTHING RETURNING event_id
       )
       INSERT INTO users (clerk_user_id, ads_used, ads_limit)
-      SELECT ${userId}, 0, 1000 FROM accepted
-      ON CONFLICT (clerk_user_id) DO UPDATE SET ads_used = 0, ads_limit = 1000
+      SELECT ${userId}, 0, ${creditLimit} FROM accepted
+      ON CONFLICT (clerk_user_id) DO UPDATE SET ads_used = 0, ads_limit = ${creditLimit}
     `;
   } else {
     await sql`
