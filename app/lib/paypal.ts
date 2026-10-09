@@ -16,7 +16,7 @@ export async function getPayPalAccessToken() {
   const clientId = process.env.PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
 
-  if (!clientId || !clientSecret || !process.env.PAYPAL_PLAN_ID) {
+  if (!clientId || !clientSecret || (!process.env.PAYPAL_PLAN_ID && !process.env.PAYPAL_NEW_PLAN_ID)) {
     throw new Error("PayPal checkout is not configured yet.");
   }
 
