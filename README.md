@@ -88,14 +88,18 @@ NEXT_PUBLIC_URL=http://localhost:3000
 # Stripe test configuration
 STRIPE_SECRET_KEY=sk_test_REPLACE_ME
 STRIPE_WEBHOOK_SECRET=whsec_REPLACE_ME
+STRIPE_PRICE_ID=price_REPLACE_ME
+NEXT_PUBLIC_STRIPE_PRO_CHECKOUT_READY=false
 
 # Optional PayPal Sandbox configuration
 PAYPAL_MODE=sandbox
 PAYPAL_CLIENT_ID=REPLACE_ME
 PAYPAL_CLIENT_SECRET=REPLACE_ME
-PAYPAL_PLAN_ID=P-REPLACE_ME
+PAYPAL_PLAN_ID=P-LEGACY_REPLACE_ME
+PAYPAL_NEW_PLAN_ID=P-REPLACE_ME
 PAYPAL_WEBHOOK_ID=REPLACE_ME
 NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED=false
+NEXT_PUBLIC_PAYPAL_PRO_CHECKOUT_READY=false
 ```
 
 | Variable | Required for / behavior |
@@ -107,13 +111,17 @@ NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED=false
 | `NEXT_PUBLIC_URL` | Absolute origin used for both providers' checkout return/cancel URLs |
 | `STRIPE_SECRET_KEY` | Stripe server client and checkout |
 | `STRIPE_WEBHOOK_SECRET` | Signature verification for the receiving Stripe endpoint |
+| `STRIPE_PRICE_ID` | The active USD $9.99/month Stripe price for new subscriptions; the route verifies amount and interval |
+| `NEXT_PUBLIC_STRIPE_PRO_CHECKOUT_READY` | Set to exact `true` only after the new Stripe price and server env are configured; reveals the card checkout button |
 | `PAYPAL_MODE` | Only exact `live` selects live; every other value defaults to Sandbox |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Server-side credentials for the selected PayPal app/environment |
-| `PAYPAL_PLAN_ID` | Subscription plan created in that same environment |
+| `PAYPAL_PLAN_ID` | Existing legacy PayPal plan; retained to recognize current subscribers |
+| `PAYPAL_NEW_PLAN_ID` | Active USD $9.99/month PayPal plan for new subscriptions; the route verifies amount and interval |
 | `PAYPAL_WEBHOOK_ID` | ID of the webhook registered for that PayPal app |
-| `NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED` | Only exact `true` shows the PayPal button; this does not disable the API |
+| `NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED` | Only exact `true` enables the PayPal option |
+| `NEXT_PUBLIC_PAYPAL_PRO_CHECKOUT_READY` | Set to exact `true` only after the new PayPal plan and server env are configured |
 
-There is currently **no `STRIPE_PRICE_ID` environment variable**. The checkout route hardcodes `price_1TkuMwQOaffISLiSWNXxYR8s`. Replace that literal in `app/api/stripe/checkout/route.ts` with a recurring price from your Stripe account and selected mode, or implement environment-based price selection separately. Its actual amount/mode cannot be inferred from the ID. No Stripe publishable key or browser-side PayPal client ID is used by the current redirect-based checkout.
+New Stripe sign-ups use `STRIPE_PRICE_ID`; checkout verifies that the price is active, USD $9.99, and monthly before creating a subscription, and fails closed otherwise. The existing price ID `price_1TkuMwQOaffISLiSWNXxYR8s` is recognized only for existing legacy subscriptions. Keep each ID paired with a Stripe secret and webhook from the same test or live environment. No Stripe publishable key or browser-side PayPal client ID is used by the redirect-based checkout.
 
 ## Database requirements
 
@@ -146,7 +154,7 @@ CREATE TABLE IF NOT EXISTS ads (
 
 The unique/primary key on `users.clerk_user_id` is required for billing and generation `ON CONFLICT` statements. The generation route explicitly inserts 0 used and a 10-generation limit for new accounts, so existing databases with an older default also give new users 10 credits. Existing account balances are preserved. `ads.id` supports ordering/deletion and `created_at` is displayed by the dashboard.
 
-Security helpers create `request_limits` (per-account/action throttles), `ad_image_generation_slots` (one image attempt per saved ad and idea), `free_image_generation_claims` (one free image per account), and `billing_credit_events` (atomic payment receipts) at runtime. The database role needs CREATE TABLE/INDEX and ALTER on `ads`, or an administrator must pre-provision the objects from `app/lib/ad-security.ts` and `app/lib/billing-security.ts`. If migration fails, saved-ad access fails closed.
+Security helpers create `request_limits` (per-account/action throttles), `ad_image_generation_slots` (active/uncertain image-request locks), and `billing_credit_events` (atomic payment receipts) at runtime. The database role needs CREATE TABLE/INDEX and ALTER on `ads`, or an administrator must pre-provision the objects from `app/lib/ad-security.ts` and `app/lib/billing-security.ts`. If migration fails, saved-ad access fails closed.
 
 PayPal creates these additional objects at runtime:
 
@@ -164,14 +172,14 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 `POST /api/generate` accepts `product`, `audience`, `benefit`, `website`, `tone`, `adType`, `adCount`, and `brandName`. Product and audience are required. The route validates text lengths, HTTP(S) website URLs, channels, tones, and integer counts of 1–20; JSON bodies are limited to 16 KiB. It requests copy from OpenAI Chat Completions using `gpt-4.1-mini`, reserves one credit atomically (default 5 ideas), inserts the generated batch into `ads` with the authenticated Clerk user ID, and returns `{ result, adId }`.
 
-**One text generation request consumes one credit**, whether it requests 5, 10, or 20 ad ideas. A free account also gets one image generation total at no additional customer credit cost. Pro image generations consume one existing Pro credit each. Free users default to 10 generations; Pro payment events set the allowance to 1,000 and reset usage to zero. There is no scheduled monthly reset for free users. Pro renewal resets depend on payment webhooks.
+**One ad-generation batch consumes one credit**, whether it returns 5, 10, or 20 copy ideas. Each generated image also consumes one credit for both Free and Pro accounts. Free accounts start with 10 credits; new Pro subscriptions receive 150 credits each paid billing cycle. Existing $19.99 Pro subscribers retain their current 1,000-credit terms. Failed image requests are refunded; if the provider may have processed a request, that ad’s image is locked to avoid a duplicate provider charge. There is no scheduled free-plan reset.
 
-`POST /api/generate-image` requires Clerk sign-in, an owned `adId`, and an `adIndex` within the saved batch. Free accounts get one image generation total, enforced by a unique account-level claim. Pro members can create one image per ad, using one existing Pro credit. A unique database key permits one provider attempt per saved ad idea. If a Pro request fails ambiguously, its credit is restored but the ad remains locked; an ambiguous free request uses the one free image to prevent a duplicate provider charge. A successful PNG is returned to the current page and is not stored; download it before leaving. The OpenAI project must have image-model access and billing. The route has a 180-second execution limit and 150-second API timeout without automatic retries.
+`POST /api/generate-image` requires Clerk sign-in, an owned `adId`, and an `adIndex` within the saved batch. Each successful image uses one credit, and a customer may generate another image for the same idea while credits remain. A unique database key blocks concurrent duplicate requests; after a provider request may have started and failed ambiguously, the credit is refunded but that ad remains locked to prevent another provider charge. Successful PNGs are returned to the page and are not stored; download them before leaving. The OpenAI project must have image-model access and billing. The route has a 180-second execution limit and 150-second API timeout without automatic retries.
 
 ## Stripe billing
 
-1. In your Stripe test environment, create a recurring USD 19.99/month price matching the displayed Pro offer. Replace the hardcoded checkout price with its ID.
-2. Set the Stripe secret key, webhook signing secret, and `NEXT_PUBLIC_URL`.
+1. Create a recurring USD $9.99/month Stripe price in the same environment as the secret key.
+2. Set `STRIPE_PRICE_ID`, the Stripe secret key, webhook signing secret, and `NEXT_PUBLIC_URL`. Set `NEXT_PUBLIC_STRIPE_PRO_CHECKOUT_READY=true` only after verifying all four values match that environment.
 3. Register `https://YOUR_HOST/api/stripe/webhook` for:
    - `checkout.session.completed`
    - `invoice.paid`
@@ -180,7 +188,7 @@ The root layout wraps the app in `ClerkProvider`. The homepage uses Clerk modal 
 
 Checkout creates a hosted subscription session with the Clerk ID in `client_reference_id` and subscription metadata. Success returns to `/dashboard?success=true`; cancellation returns to `/?canceled=true`. Redirects alone do not update credits.
 
-The signature-verified webhook grants/resets 1,000 generations only on a paid invoice with a positive amount paid and Clerk subscription metadata. Checkout completion alone grants no credits. Invoice IDs deduplicate initial/renewal grants atomically with the balance update. Subscription deletion lowers the allowance to 10 without resetting usage. Database failures return HTTP 500 for retries. Payment failures and subscription updates are not handled; zero-dollar/trial invoices do not grant Pro credits.
+The signature-verified webhook grants/resets 150 credits for the new configured price, or preserves 1,000 credits for the legacy price, only on a paid invoice with a positive amount paid and Clerk subscription metadata. Checkout completion alone grants no credits. Invoice IDs deduplicate grants atomically with the balance update. Subscription deletion lowers the allowance to 10 without resetting usage. Database failures return HTTP 500 for retries. Payment failures and subscription updates are not handled; zero-dollar/trial invoices do not grant Pro credits.
 
 For local testing with the Stripe CLI installed/authenticated:
 
@@ -195,19 +203,19 @@ Use the listener's signing secret in local `STRIPE_WEBHOOK_SECRET` and restart t
 PayPal is a separate subscription/payment provider. PayPal receipts settle to the PayPal merchant account; they do not change Stripe payout settings.
 
 1. Start with a PayPal Business Sandbox app and Sandbox seller/buyer accounts.
-2. Create a product and an active recurring USD 19.99/month subscription plan in Sandbox.
-3. Set the matching Client ID, secret, plan ID, `PAYPAL_MODE=sandbox`, and app origin.
+2. Create a product and active recurring USD $9.99/month plan in Sandbox.
+3. Set its ID as `PAYPAL_NEW_PLAN_ID`. Keep the old plan ID as `PAYPAL_PLAN_ID` so existing subscriptions remain recognized. Set matching Client ID, secret, `PAYPAL_MODE=sandbox`, and app origin.
 4. Register a publicly reachable HTTPS webhook at `https://YOUR_HOST/api/paypal/webhook` for exactly:
    - `PAYMENT.SALE.COMPLETED`
    - `BILLING.SUBSCRIPTION.CANCELLED`
    - `BILLING.SUBSCRIPTION.SUSPENDED`
    - `BILLING.SUBSCRIPTION.EXPIRED`
-5. Set its webhook ID, then set `NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED=true` and rebuild/redeploy.
+5. Set its webhook ID, then set `NEXT_PUBLIC_PAYPAL_CHECKOUT_ENABLED=true` and `NEXT_PUBLIC_PAYPAL_PRO_CHECKOUT_READY=true`, and rebuild/redeploy.
 6. Sign in, select **Subscribe with PayPal**, and approve using a Sandbox buyer.
 
-Checkout attaches the Clerk ID as `custom_id`, rejects accounts whose allowance is already at least 1,000, and reuses pending approval URLs for up to 30 minutes. Return and cancellation pages are `/paypal/return` and `/paypal/cancel`; neither page grants Pro.
+Checkout validates the active monthly USD $9.99 plan, attaches the Clerk ID as `custom_id`, rejects accounts already showing Pro access, and reuses only matching-plan approval URLs for up to 30 minutes. Return and cancellation pages are `/paypal/return` and `/paypal/cancel`; neither page grants Pro.
 
-The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale on an active subscription grants/resets 1,000 generations, atomically deduplicated by sale ID with the balance change. Cancellation, suspension, or expiry lowers the allowance to 10 without resetting usage when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
+The webhook verifies the signature through PayPal, fetches the subscription, checks its plan ID and Clerk `custom_id`, and tracks processed event IDs. A completed sale on the new plan grants/resets 150 credits; a legacy subscription keeps its 1,000-credit allowance. Grants are deduplicated by sale ID. Cancellation, suspension, or expiry lowers the allowance to 10 without resetting usage when the fetched subscription status confirms it. Approval or activation alone does not grant credits.
 
 For local webhook testing, expose the local server through a public HTTPS tunnel and register that URL with the Sandbox app, or use a Sandbox-configured preview deployment. Set `NEXT_PUBLIC_URL` to the reachable app origin and use the webhook ID for that exact registered endpoint.
 
@@ -221,7 +229,7 @@ For local webhook testing, expose the local server through a public HTTPS tunnel
 | PayPal | `PAYPAL_MODE=sandbox`; Sandbox app, plan, webhook, buyer | `PAYPAL_MODE=live`; live app, plan, webhook |
 | `NEXT_PUBLIC_URL` | Local origin or the actual preview/tunnel origin | Canonical HTTPS production origin |
 
-Changing only `PAYPAL_MODE` is insufficient: replace all PayPal credentials, plan ID, and webhook ID together. Stripe also requires changing the hardcoded price when switching accounts/modes. Test configuration for one provider does not put the other provider into test mode. Sandbox billing does not make OpenAI requests free; generation still uses the configured OpenAI project.
+Changing only `PAYPAL_MODE` is insufficient: match the PayPal credentials, both plan IDs, and webhook ID to the selected environment. Stripe requires a `STRIPE_PRICE_ID` from the account/mode matching its API key. Test configuration for one provider does not put the other provider into test mode. Sandbox billing does not make OpenAI requests free; generation still uses the configured OpenAI project.
 
 ## Deployment on Vercel
 
@@ -259,11 +267,11 @@ For an end-to-end check, sign in with a test user, generate a batch, confirm usa
 These are behaviors of the current code, not setup options:
 
 - **Historical ads:** pre-security-update ads with no verified Clerk owner are retained in the database but hidden. New ads are owner-scoped for listing and deletion; requests for another owner’s ad return 404.
-- **Image lifecycle:** free accounts get one image attempt total; Pro images consume one existing credit per ad, with one attempt per idea. Images are not persisted; download before navigating away. If an upstream Pro request fails ambiguously, the credit is restored and the ad remains locked; an ambiguous free request uses the one free attempt. Text and image generation use separate limits of five requests per account per minute; checkout has a separate three-per-minute limit.
+- **Image lifecycle:** each image uses one credit for every plan. Successful images are not persisted; download before navigating away. If an upstream request fails ambiguously, the credit is restored and the ad remains locked. Text and image generation use separate limits of five requests per account per minute; checkout has a separate three-per-minute limit.
 - **Credit accounting:** text and image requests reserve credits with a conditional atomic update and attempt refunds on failure. Process termination and a billing reset racing with a refund still need a durable per-generation ledger; these protections are not a full accounting reconciliation system.
 - **Billing lifecycle:** payment receipts and credit changes are atomic and duplicate grants are ignored. PayPal subscription-status bookkeeping is separate from the credit transaction. Out-of-order events and combined subscription reconciliation remain follow-up work.
 - **Multiple subscriptions:** Both checkout routes reject accounts already showing Pro access, but concurrently opened Stripe checkout sessions can still create multiple subscriptions. Both providers write the same allowance, with no combined subscription reconciliation; a cancellation from one can downgrade an account still paying through the other. No in-app billing portal or subscription-cancellation API exists.
-- **Allowance display:** the dashboard checks `creditsLeft > 1000` for its Pro label, so a normal 1,000-credit Pro account can be labeled Free. Use account values and provider records to verify billing rather than that label.
+- **Provider setup:** new checkout stays disabled until the verified $9.99 recurring plan is configured for that provider. Existing paid subscriptions keep their legacy plan ID and allowance.
 - **Feature scope:** history retrieval is limited to 50 records; surveys and PDF export remain unimplemented. Free monthly resets are not scheduled.
 
 
