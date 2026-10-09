@@ -101,7 +101,7 @@ export default function Dashboard() {
   const usagePercent = usage && usage.limit > 0
     ? Math.min(100, Math.round((usage.used / usage.limit) * 100))
     : 0;
-  const isPro = (usage?.limit ?? 0) > 50;
+  const isPro = (usage?.limit ?? 0) > 10;
 
   const filteredAds = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -239,14 +239,14 @@ export default function Dashboard() {
                 <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${isPro ? "bg-[#edf2e8] text-[#496442]" : "bg-[#f4f3ef] text-[#777c72]"}`}>{isPro ? "Active" : "A lovely place to start"}</span>
               </div>
               <h2 className="mt-5 text-3xl font-semibold tracking-[-.045em]">{isPro ? "Pro" : "Free"}</h2>
-              <p className="mt-2 max-w-md text-sm leading-6 text-[#777c72]">{isPro ? "More room for more good ideas, with 1,000 generations each month." : "Explore the studio with 50 generations. Upgrade when you need more monthly room."}</p>
+              <p className="mt-2 max-w-md text-sm leading-6 text-[#777c72]">{isPro ? "Get 150 monthly credits for ad generations or images." : "Start with 10 credits. Upgrade when you need more monthly room."}</p>
               <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#f7f8f4] p-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg text-[#668154] shadow-sm">✳</span>
-                <div><p className="text-sm font-semibold text-[#394736]">One generation, one credit</p><p className="mt-0.5 text-xs leading-5 text-[#7b8076]">Use your balance to explore campaign ideas.</p></div>
+                <div><p className="text-sm font-semibold text-[#394736]">One generation or image, one credit</p><p className="mt-0.5 text-xs leading-5 text-[#7b8076]">Your balance covers ad batches and generated images.</p></div>
               </div>
             </div>
             <a href="/#pricing" className={`mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition ${isPro ? "border border-[#dfe3d9] text-[#506547] hover:bg-[#f7f8f4]" : "bg-[#35563c] text-white hover:bg-[#28452f]"}`}>
-              {isPro ? "Review plan details" : "See Pro plan · $19.99/month"} <span aria-hidden="true">↗</span>
+              {isPro ? "Review plan details" : "See Pro plan · $9.99/month"} <span aria-hidden="true">↗</span>
             </a>
           </article>
         </section>

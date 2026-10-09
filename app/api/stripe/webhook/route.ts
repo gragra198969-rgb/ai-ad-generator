@@ -21,7 +21,25 @@ export async function POST(req: Request) {
       const invoice = event.data.object as Stripe.Invoice;
       const userId = invoice.parent?.subscription_details?.metadata?.clerk_user_id;
       if (userId && invoice.status === "paid" && invoice.amount_paid > 0) {
-        await applyCreditEvent("stripe", `invoice:${invoice.id}`, userId, true);
+        const paidPriceIds = invoice.lines.data.flatMap((line) => {
+          const pricing = (line as unknown as {
+            pricing?: { price_details?: { price?: unknown } } | null;
+          }).pricing;
+          const price = pricing?.price_details?.price;
+          if (typeof price === "string") return [price];
+          if (price && typeof price === "object" && "id" in price && typeof price.id === "string") {
+            return [price.id];
+          }
+          return [];
+        });
+        const newPlanPaid = Boolean(process.env.STRIPE_PRICE_ID && paidPriceIds.includes(process.env.STRIPE_PRICE_ID));
+        const legacyPlanPaid = paidPriceIds.includes("price_1TkuMwQOaffISLiSWNXxYR8s");
+        if (newPlanPaid) {
+          await applyCreditEvent("stripe", `invoice:${invoice.id}`, userId, true, 150);
+        } else if (legacyPlanPaid) {
+          // Preserve the existing $19.99 plan for subscribers who already have it.
+          await applyCreditEvent("stripe", `invoice:${invoice.id}`, userId, true, 1000);
+        }
       }
     }
     if (event.type === "customer.subscription.deleted") {

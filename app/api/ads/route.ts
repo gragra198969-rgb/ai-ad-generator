@@ -21,7 +21,8 @@ export async function GET() {
                SELECT ARRAY_AGG(slot.ad_index ORDER BY slot.ad_index)
                FROM ad_image_generation_slots AS slot
                WHERE slot.ad_id = ads.id AND slot.clerk_user_id = ${userId}
-             ), ARRAY[]::INTEGER[]) AS image_generated_indices
+               AND slot.status IN ('generating', 'failed')
+             ), ARRAY[]::INTEGER[]) AS image_locked_indices
       FROM ads WHERE clerk_user_id = ${userId} ORDER BY id DESC LIMIT 50
     `;
     return Response.json(ads, { headers: { "Cache-Control": "private, no-store" } });

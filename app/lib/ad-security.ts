@@ -22,13 +22,6 @@ export function ensureAdImageGenerationSlots() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (ad_id, ad_index)
     )`;
-    await sql`CREATE TABLE IF NOT EXISTS free_image_generation_claims (
-      clerk_user_id TEXT PRIMARY KEY,
-      ad_id INTEGER NOT NULL,
-      ad_index INTEGER NOT NULL CHECK (ad_index >= 0 AND ad_index < 20),
-      status TEXT NOT NULL CHECK (status IN ('generating', 'generated', 'failed')),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`;
   })().catch((error) => { imageSlotSchemaReady = undefined; throw error; });
   return imageSlotSchemaReady;
 }

@@ -9,7 +9,8 @@ export async function POST(req: Request) {
   if (!userId) return Response.json({ error: "Sign in to subscribe." }, { status: 401 });
 
   const origin = process.env.NEXT_PUBLIC_URL;
-  if (!origin) return Response.json({ error: "Checkout is not configured." }, { status: 503 });
+  const planId = process.env.PAYPAL_NEW_PLAN_ID;
+  if (!origin || !planId) return Response.json({ error: "The $9.99 PayPal Pro plan is not configured yet." }, { status: 503 });
 
   try {
     assertSameOrigin(req);
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     const [account] = await sql`
       SELECT ads_limit FROM users WHERE clerk_user_id = ${userId} LIMIT 1
     `;
-    if (Number(account?.ads_limit ?? 10) >= 1000) {
+    if (Number(account?.ads_limit ?? 10) > 10) {
       return Response.json({ error: "This account already has Pro access." }, { status: 409 });
     }
 
@@ -40,11 +41,12 @@ export async function POST(req: Request) {
       UPDATE paypal_subscriptions SET status = 'EXPIRED', updated_at = NOW()
       WHERE clerk_user_id = ${userId}
         AND status = 'APPROVAL_PENDING'
-        AND updated_at < NOW() - INTERVAL '30 minutes'
+        AND (plan_id <> ${planId} OR updated_at < NOW() - INTERVAL '30 minutes')
     `;
     const [pending] = await sql`
       SELECT approval_url FROM paypal_subscriptions
       WHERE clerk_user_id = ${userId}
+        AND plan_id = ${planId}
         AND status = 'APPROVAL_PENDING'
         AND updated_at >= NOW() - INTERVAL '30 minutes'
       ORDER BY updated_at DESC LIMIT 1
@@ -52,6 +54,29 @@ export async function POST(req: Request) {
     if (pending?.approval_url) return Response.json({ url: pending.approval_url });
 
     const token = await getPayPalAccessToken();
+    const planResponse = await fetch(`${PAYPAL_API_BASE}/v1/billing/plans/${encodeURIComponent(planId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!planResponse.ok) {
+      return Response.json({ error: "The PayPal Pro plan could not be verified." }, { status: 503 });
+    }
+    const plan = await planResponse.json() as {
+      status?: string;
+      billing_cycles?: Array<{
+        tenure_type?: string;
+        frequency?: { interval_unit?: string; interval_count?: number };
+        pricing_scheme?: { fixed_price?: { value?: string; currency_code?: string } };
+      }>;
+    };
+    const regularCycles = plan.billing_cycles?.filter((cycle) => cycle.tenure_type === "REGULAR") ?? [];
+    const regular = regularCycles[0];
+    if (plan.status !== "ACTIVE" || (plan.billing_cycles?.length ?? 0) !== 1 || regularCycles.length !== 1 ||
+        regular?.frequency?.interval_unit !== "MONTH" || regular.frequency.interval_count !== 1 ||
+        regular.pricing_scheme?.fixed_price?.currency_code !== "USD" ||
+        Number(regular.pricing_scheme.fixed_price.value) !== 9.99) {
+      return Response.json({ error: "The configured PayPal plan must be active at USD $9.99 per month." }, { status: 503 });
+    }
     const response = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions`, {
       method: "POST",
       headers: {
@@ -60,7 +85,7 @@ export async function POST(req: Request) {
         "PayPal-Request-Id": crypto.randomUUID(),
       },
       body: JSON.stringify({
-        plan_id: process.env.PAYPAL_PLAN_ID,
+        plan_id: planId,
         custom_id: userId,
         application_context: {
           brand_name: "AdSurvey Studio",
@@ -93,12 +118,12 @@ export async function POST(req: Request) {
         INSERT INTO paypal_subscriptions
           (subscription_id, clerk_user_id, plan_id, approval_url, status)
         VALUES
-          (${subscriptionId}, ${userId}, ${process.env.PAYPAL_PLAN_ID!}, ${approvalUrl}, 'APPROVAL_PENDING')
+          (${subscriptionId}, ${userId}, ${planId}, ${approvalUrl}, 'APPROVAL_PENDING')
       `;
     } catch (error) {
       const [existing] = await sql`
         SELECT approval_url FROM paypal_subscriptions
-        WHERE clerk_user_id = ${userId} AND status = 'APPROVAL_PENDING'
+        WHERE clerk_user_id = ${userId} AND plan_id = ${planId} AND status = 'APPROVAL_PENDING'
         ORDER BY updated_at DESC LIMIT 1
       `;
       if (existing?.approval_url) return Response.json({ url: existing.approval_url });

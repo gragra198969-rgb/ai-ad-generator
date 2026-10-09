@@ -16,10 +16,7 @@ export async function GET() {
 
   const users = await sql`
     SELECT COALESCE((SELECT ads_used FROM users WHERE clerk_user_id = ${userId}), 0) AS ads_used,
-           COALESCE((SELECT ads_limit FROM users WHERE clerk_user_id = ${userId}), 10) AS ads_limit,
-           NOT EXISTS (
-             SELECT 1 FROM free_image_generation_claims WHERE clerk_user_id = ${userId}
-           ) AS free_image_available
+           COALESCE((SELECT ads_limit FROM users WHERE clerk_user_id = ${userId}), 10) AS ads_limit
   `;
 
   return Response.json(users[0], { headers: { "Cache-Control": "private, no-store" } });
