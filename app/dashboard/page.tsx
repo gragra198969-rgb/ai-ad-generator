@@ -242,7 +242,7 @@ export default function Dashboard() {
               <p className="mt-2 max-w-md text-sm leading-6 text-[#777c72]">{isPro ? "Get 150 monthly credits for ad generations or images." : "Start with 10 credits. Upgrade when you need more monthly room."}</p>
               <div className="mt-6 flex items-center gap-3 rounded-2xl bg-[#f7f8f4] p-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg text-[#668154] shadow-sm">✳</span>
-                <div><p className="text-sm font-semibold text-[#394736]">One generation, one credit</p><p className="mt-0.5 text-xs leading-5 text-[#7b8076]">Use your balance to explore campaign ideas.</p></div>
+                <div><p className="text-sm font-semibold text-[#394736]">One generation or image, one credit</p><p className="mt-0.5 text-xs leading-5 text-[#7b8076]">Your balance covers ad batches and generated images.</p></div>
               </div>
             </div>
             <a href="/#pricing" className={`mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition ${isPro ? "border border-[#dfe3d9] text-[#506547] hover:bg-[#f7f8f4]" : "bg-[#35563c] text-white hover:bg-[#28452f]"}`}>
