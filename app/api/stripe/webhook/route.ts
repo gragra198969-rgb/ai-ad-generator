@@ -21,9 +21,17 @@ export async function POST(req: Request) {
       const invoice = event.data.object as Stripe.Invoice;
       const userId = invoice.parent?.subscription_details?.metadata?.clerk_user_id;
       if (userId && invoice.status === "paid" && invoice.amount_paid > 0) {
-        const paidPriceIds = invoice.lines.data
-          .map((line) => typeof line.price === "string" ? line.price : line.price?.id)
-          .filter((priceId): priceId is string => Boolean(priceId));
+        const paidPriceIds = invoice.lines.data.flatMap((line) => {
+          const pricing = (line as unknown as {
+            pricing?: { price_details?: { price?: unknown } } | null;
+          }).pricing;
+          const price = pricing?.price_details?.price;
+          if (typeof price === "string") return [price];
+          if (price && typeof price === "object" && "id" in price && typeof price.id === "string") {
+            return [price.id];
+          }
+          return [];
+        });
         const newPlanPaid = Boolean(process.env.STRIPE_PRICE_ID && paidPriceIds.includes(process.env.STRIPE_PRICE_ID));
         const legacyPlanPaid = paidPriceIds.includes("price_1TkuMwQOaffISLiSWNXxYR8s");
         if (newPlanPaid) {
