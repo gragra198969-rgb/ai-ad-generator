@@ -48,9 +48,7 @@ export async function POST(req: Request) {
   }
   let slotClaimed = false;
   let creditReserved = false;
-  let freeImageClaimed = false;
   let imageRequestStarted = false;
-  let isPro = false;
   try {
     await ensureAdImageGenerationSlots();
     await sql`
@@ -63,9 +61,8 @@ export async function POST(req: Request) {
       SELECT ads_used, ads_limit FROM users WHERE clerk_user_id = ${userId}
     `;
     if (!accounts.length) return Response.json({ error: "Account details could not be loaded. Please try again." }, { status: 503 });
-    isPro = Number(accounts[0].ads_limit) > 10;
-    if (isPro && Number(accounts[0].ads_used) >= Number(accounts[0].ads_limit)) {
-      return Response.json({ error: "You have used all your Pro credits." }, { status: 403 });
+    if (Number(accounts[0].ads_used) >= Number(accounts[0].ads_limit)) {
+      return Response.json({ error: "You’ve used all your available credits. Upgrade or wait for your next billing cycle." }, { status: 403 });
     }
 
     if (!await allowRequest(userId, "image_generation", 5)) {
@@ -83,6 +80,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "Picture generation is not configured yet." }, { status: 503 });
     }
 
+    // Successful images are not persisted, so they may be regenerated for one credit.
+    // Keep only active or ambiguous failures locked to prevent duplicate provider charges.
+    await sql`
+      DELETE FROM ad_image_generation_slots
+      WHERE ad_id = ${adId} AND ad_index = ${adIndex}
+        AND clerk_user_id = ${userId} AND status = 'generated'
+    `;
     const claimed = await sql`
       INSERT INTO ad_image_generation_slots (ad_id, ad_index, clerk_user_id, status)
       VALUES (${adId}, ${adIndex}, ${userId}, 'generating')
@@ -91,38 +95,23 @@ export async function POST(req: Request) {
     `;
     if (!claimed.length) {
       return Response.json({
-        error: "This ad already used its one image request. Each ad can have one image, so another image won’t be generated or charged.",
+        error: "An image request for this ad is already running or was locked after an uncertain provider result. No second request was sent.",
         retryAllowed: false,
       }, { status: 409 });
     }
     slotClaimed = true;
 
-    if (isPro) {
-      const reserved = await sql`
-        UPDATE users SET ads_used = ads_used + 1
-        WHERE clerk_user_id = ${userId} AND ads_limit > 10 AND ads_used < ads_limit
-        RETURNING ads_used
-      `;
-      if (!reserved.length) {
-        await sql`DELETE FROM ad_image_generation_slots WHERE ad_id = ${adId} AND ad_index = ${adIndex} AND clerk_user_id = ${userId}`;
-        slotClaimed = false;
-        return Response.json({ error: "You have used all your Pro credits." }, { status: 403 });
-      }
-      creditReserved = true;
-    } else {
-      const freeClaim = await sql`
-        INSERT INTO free_image_generation_claims (clerk_user_id, ad_id, ad_index, status)
-        VALUES (${userId}, ${adId}, ${adIndex}, 'generating')
-        ON CONFLICT (clerk_user_id) DO NOTHING
-        RETURNING clerk_user_id
-      `;
-      if (!freeClaim.length) {
-        await sql`DELETE FROM ad_image_generation_slots WHERE ad_id = ${adId} AND ad_index = ${adIndex} AND clerk_user_id = ${userId}`;
-        slotClaimed = false;
-        return Response.json({ error: "Your one free image has already been used. Pro includes 1 image credit for each ad." }, { status: 403 });
-      }
-      freeImageClaimed = true;
+    const reserved = await sql`
+      UPDATE users SET ads_used = ads_used + 1
+      WHERE clerk_user_id = ${userId} AND ads_used < ads_limit
+      RETURNING ads_used
+    `;
+    if (!reserved.length) {
+      await sql`DELETE FROM ad_image_generation_slots WHERE ad_id = ${adId} AND ad_index = ${adIndex} AND clerk_user_id = ${userId}`;
+      slotClaimed = false;
+      return Response.json({ error: "You’ve used all your available credits. Upgrade or wait for your next billing cycle." }, { status: 403 });
     }
+    creditReserved = true;
 
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -151,12 +140,9 @@ Absolutely no visible writing or typography: no words, letters, numbers, pseudo-
     if (!image) throw new Error("No image returned");
 
     await sql`
-      UPDATE ad_image_generation_slots SET status = 'generated'
+      DELETE FROM ad_image_generation_slots
       WHERE ad_id = ${adId} AND ad_index = ${adIndex} AND clerk_user_id = ${userId}
     `;
-    if (freeImageClaimed) {
-      await sql`UPDATE free_image_generation_claims SET status = 'generated' WHERE clerk_user_id = ${userId}`;
-    }
     creditReserved = false;
     slotClaimed = false;
     return Response.json({ image: `data:image/png;base64,${image}` });
@@ -177,18 +163,6 @@ Absolutely no visible writing or typography: no words, letters, numbers, pseudo-
           error: "Picture generation failed and we could not restore your credit. Please contact support.",
           retryAllowed: false,
         }, { status: 500 });
-      }
-    }
-    if (freeImageClaimed) {
-      try {
-        if (imageRequestStarted) {
-          // An ambiguous provider result consumes the one free attempt to cap owner costs.
-          await sql`UPDATE free_image_generation_claims SET status = 'failed' WHERE clerk_user_id = ${userId}`;
-        } else {
-          await sql`DELETE FROM free_image_generation_claims WHERE clerk_user_id = ${userId}`;
-        }
-      } catch {
-        // Keep a claim if cleanup fails; allowing another attempt could incur another charge.
       }
     }
     if (slotClaimed) {
@@ -212,11 +186,9 @@ Absolutely no visible writing or typography: no words, letters, numbers, pseudo-
     }
     return Response.json({
       error: imageRequestStarted
-        ? isPro
-          ? "The image request failed. Your credit was restored. To avoid a duplicate image charge, this ad’s image request is locked; create a new ad to try again."
-          : "The image request failed after it started, so the free image was used to prevent a duplicate provider charge."
+        ? "The image request failed after it started. Your 1 credit was restored, but this ad’s image is locked to prevent a duplicate provider charge. Create a new ad to try again."
         : creditWasRefunded
-          ? "Picture generation did not start. Your Pro credit was restored; you can try again."
+          ? "Picture generation did not start. Your credit was restored; you can try again."
           : "Picture generation is temporarily unavailable. Please try again.",
       retryAllowed: !imageRequestStarted,
     }, { status: 502 });
