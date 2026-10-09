@@ -123,7 +123,7 @@ export async function POST(req: Request) {
     } catch (error) {
       const [existing] = await sql`
         SELECT approval_url FROM paypal_subscriptions
-        WHERE clerk_user_id = ${userId} AND status = 'APPROVAL_PENDING'
+        WHERE clerk_user_id = ${userId} AND plan_id = ${planId} AND status = 'APPROVAL_PENDING'
         ORDER BY updated_at DESC LIMIT 1
       `;
       if (existing?.approval_url) return Response.json({ url: existing.approval_url });
