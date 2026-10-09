@@ -18,14 +18,16 @@ export async function POST(req: Request) {
 
   try {
     assertSameOrigin(req);
-    if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_URL || !process.env.STRIPE_PRICE_ID) {
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!stripeSecret || !process.env.NEXT_PUBLIC_URL || !priceId) {
       return NextResponse.json({ error: "The $9.99 Pro plan is not configured yet." }, { status: 503 });
     }
     if (!await allowRequest(userId, "checkout", 3)) return NextResponse.json({ error: "Please wait a minute before trying checkout again." }, { status: 429, headers: { "Retry-After": "60" } });
     const [account] = await sql`SELECT ads_limit FROM users WHERE clerk_user_id = ${userId} LIMIT 1`;
     if (Number(account?.ads_limit ?? 10) > 10) return NextResponse.json({ error: "This account already has Pro access." }, { status: 409 });
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const price = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID);
+    const stripe = new Stripe(stripeSecret);
+    const price = await stripe.prices.retrieve(priceId);
     if (!price.active || price.currency !== "usd" || price.unit_amount !== 999 ||
         price.recurring?.interval !== "month" || price.recurring.interval_count !== 1) {
       return NextResponse.json({ error: "The configured Stripe price must be active USD $9.99 per month." }, { status: 503 });
