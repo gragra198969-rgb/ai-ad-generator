@@ -11,15 +11,16 @@ const nativeRequire = createRequire(import.meta.url);
 // Execute the actual TypeScript route handlers with isolated auth/provider
 // boundaries and a PostgreSQL engine, never production accounts or services.
 function harness(db) {
-  const state = { userId: 'alice', providerCalls: 0, failProvider: false, imageProviderCalls: 0, failImageProvider: false };
+  const state = { userId: 'alice', providerCalls: 0, failProvider: false, imageProviderCalls: 0, failImageProvider: false, imagePrompts: [] };
   const cache = new Map();
   const sql = async (strings, ...values) => {
     const query = strings.reduce((out, text, i) => out + (i ? `$${i}` : '') + text, '');
     return (await db.query(query, values)).rows;
   };
   const openai = class {
-    images = { generate: async () => {
+    images = { generate: async ({ prompt }) => {
       state.imageProviderCalls++;
+      state.imagePrompts.push(prompt);
       if (state.failImageProvider) throw new Error('private-image-provider-details');
       return { data: [{ b64_json: 'c2FtcGxl' }] };
     } };
@@ -114,14 +115,26 @@ test('Free and Pro image requests consume one credit and allow successful regene
     await db.exec(`INSERT INTO users VALUES ('alice', 0, 10)`);
     await db.exec(`INSERT INTO users VALUES ('bob', 0, 150)`);
     const { POST } = load('app/api/generate-image/route.ts');
-    const imageRequest = (adId, adIndex) => new Request('https://example.com/api/generate-image', {
+    const imageRequest = (adId, adIndex, extra = {}) => new Request('https://example.com/api/generate-image', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ adId, adIndex, product: 'Coffee', audience: 'Readers', benefit: 'A cozy morning ritual' }),
+      body: JSON.stringify({ adId, adIndex, product: 'Coffee', audience: 'Readers', benefit: 'A cozy morning ritual', ...extra }),
     });
 
-    const freeAttempts = await Promise.all([POST(imageRequest(aliceAds[0], 0)), POST(imageRequest(aliceAds[1], 0))]);
+    const freeAttempts = await Promise.all([
+      POST(imageRequest(aliceAds[0], 0, { product: 'Laptop', audience: 'Remote workers', benefit: 'A woman holding a phone while working on her laptop' })),
+      POST(imageRequest(aliceAds[1], 0, { product: 'Online course', audience: 'Students', benefit: 'A student working on a laptop at a desk' })),
+    ]);
     assert.deepEqual(freeAttempts.map(response => response.status).sort(), [200, 200]);
     assert.equal(state.imageProviderCalls, 2);
+    // Two mocked image-provider requests verify the geometry instructions without calling a paid API.
+    for (const prompt of state.imagePrompts.slice(0, 2)) {
+      assert.match(prompt, /DIRECTLY IN FRONT of their torso/);
+      assert.match(prompt, /keyboard and trackpad must face the person/);
+      assert.match(prompt, /OUTSIDE BACK of the laptop display/);
+      assert.match(prompt, /Never rotate a working laptop 90 degrees/);
+    }
+    assert.match(state.imagePrompts[0], /holding a phone while working on her laptop/);
+    assert.match(state.imagePrompts[1], /student working on a laptop at a desk/);
     assert.equal((await db.query(`SELECT ads_used FROM users WHERE clerk_user_id = 'alice'`)).rows[0].ads_used, 2);
     assert.equal((await POST(imageRequest(aliceAds[0], 0))).status, 200);
     assert.equal(state.imageProviderCalls, 3);
