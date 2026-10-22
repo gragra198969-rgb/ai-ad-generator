@@ -24,14 +24,20 @@ export async function shopify(query, variables={}) {
   return payload.data;
 }
 
-const PRODUCT_FIELDS = "id title status featuredImage{url} variants(first:100){nodes{id title sku selectedOptions{name value} price inventoryQuantity inventoryPolicy requiresComponents inventoryItem{requiresShipping unitCost{amount currencyCode}}}pageInfo{hasNextPage}}";
+const PRODUCT_FIELDS = "id title status featuredMedia{... on MediaImage{image{url altText}}} variants(first:100){nodes{id title sku selectedOptions{name value} price inventoryQuantity inventoryPolicy requiresComponents inventoryItem{requiresShipping unitCost{amount currencyCode}}}pageInfo{hasNextPage}}";
+function normalizeProduct(product) {
+  if (!product) return product;
+  // Shopify Admin 2026-10 provides featuredMedia, not featuredImage. Adapt it for the review engine.
+  const url = product.featuredMedia?.image?.url;
+  return {...product, featuredImage: url ? {url} : null};
+}
 const LISTING_FIELDS = PRODUCT_FIELDS + " description vendor productType media(first:15){nodes{... on MediaImage{image{url altText}}}pageInfo{hasNextPage}}";
 
 export async function getProduct(productId) {
   if (!/^gid:\/\/shopify\/Product\/\d+$/.test(productId || "")) throw Error("Expected Shopify product GID");
   const data = await shopify("query($id:ID!){product(id:$id){" + LISTING_FIELDS + "}}",{id:productId});
   if (!data.product) throw Error("Shopify product not found");
-  return data.product;
+  return normalizeProduct(data.product);
 }
 
 export async function listActiveProducts() {
@@ -39,7 +45,7 @@ export async function listActiveProducts() {
   let after = null;
   do {
     const data = await shopify("query($after:String){products(first:50,after:$after,query:\"status:active\"){nodes{" + PRODUCT_FIELDS + "}pageInfo{hasNextPage endCursor}}}",{after});
-    all.push(...data.products.nodes);
+    all.push(...data.products.nodes.map(normalizeProduct));
     after = data.products.pageInfo.hasNextPage ? data.products.pageInfo.endCursor : null;
     if (all.length > 1000) throw Error("Safety stop: unexpected catalog size");
   } while (after);
