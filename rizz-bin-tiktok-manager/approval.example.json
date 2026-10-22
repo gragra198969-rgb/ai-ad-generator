@@ -1,0 +1,18 @@
+{
+  "productId": "gid://shopify/Product/REPLACE_WITH_REAL_ID",
+  "approved": false,
+  "shopApprovedForSelling": false,
+  "supplierFulfillmentConfirmed": false,
+  "tiktokCategoryAndAttributesChecked": false,
+  "returnPolicyAndShippingChecked": false,
+  "supplierName": "REPLACE WITH VERIFIED SUPPLIER",
+  "variants": {
+    "gid://shopify/ProductVariant/REPLACE_WITH_REAL_ID": {
+      "supplierShippingUsd": null,
+      "supplierShippingEvidence": "REPLACE WITH SUPPLIER QUOTE DATE AND SOURCE",
+      "paymentFeePercent": null,
+      "paymentFeeFixedUsd": null,
+      "otherCostsUsd": null
+    }
+  }
+}
