@@ -1,0 +1,17 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {moneyCents,assessVariant,assessProduct} from "../src/core.mjs";
+const PID="gid://shopify/Product/100", VID="gid://shopify/ProductVariant/200";
+const variant={id:VID,title:"Option A",price:"29.99",inventoryQuantity:10,inventoryPolicy:"DENY",requiresComponents:false,inventoryItem:{requiresShipping:true,unitCost:{amount:"10.00"}}};
+const quote={supplierShippingUsd:"3.00",supplierShippingEvidence:"Written supplier quote 2026-10-22",paymentFeeFixedUsd:"0.30",paymentFeePercent:3,otherCostsUsd:"1.00"};
+const product={id:PID,title:"A real brush set",status:"ACTIVE",featuredImage:{url:"https://example.com/item.jpg"},variants:{nodes:[variant],pageInfo:{hasNextPage:false}}};
+const approval={productId:PID,approved:true,shopApprovedForSelling:true,supplierFulfillmentConfirmed:true,tiktokCategoryAndAttributesChecked:true,returnPolicyAndShippingChecked:true,supplierName:"Verified Supplier",variants:{[VID]:quote}};
+test("USD cents input validated",()=>{assert.equal(moneyCents("5.25"),525);assert.throws(()=>moneyCents("5.235"));assert.throws(()=>moneyCents("-1"));});
+test("fully approved profitable product passes",()=>assert.equal(assessProduct(product,approval).eligible,true));
+test("shipping missing blocks",()=>assert.equal(assessVariant(variant,{...quote,supplierShippingUsd:undefined}).eligible,false));
+test("cheap dish brush cannot meet 30% gross margin even before shipping",()=>assert.equal(assessVariant({...variant,price:"5.25",inventoryItem:{requiresShipping:true,unitCost:{amount:"3.68"}}},{...quote,supplierShippingUsd:"0.00"}).eligible,false));
+test("overselling blocked",()=>assert.equal(assessVariant({...variant,inventoryPolicy:"CONTINUE"},quote).eligible,false));
+test("component bundle blocked",()=>assert.equal(assessVariant({...variant,requiresComponents:true},quote).eligible,false));
+test("owner approval required",()=>assert.equal(assessProduct(product,{...approval,approved:false}).eligible,false));
+test("all variants audited",()=>assert.equal(assessProduct({...product,variants:{nodes:[variant,{...variant,id:"gid://shopify/ProductVariant/201",price:"3.00"}],pageInfo:{hasNextPage:false}}},approval).eligible,false));
+test("no missing-product image",()=>assert.equal(assessProduct({...product,featuredImage:null},approval).eligible,false));

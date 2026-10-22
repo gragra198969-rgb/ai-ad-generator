@@ -1,0 +1,40 @@
+{
+  "productId": "gid://shopify/Product/REPLACE_WITH_REAL_ID",
+  "approved": false,
+  "shopApprovedForSelling": false,
+  "supplierFulfillmentConfirmed": false,
+  "tiktokCategoryAndAttributesChecked": false,
+  "returnPolicyAndShippingChecked": false,
+  "supplierName": "REPLACE WITH VERIFIED SUPPLIER",
+  "variants": {
+    "gid://shopify/ProductVariant/REPLACE_WITH_REAL_ID": {
+      "supplierShippingUsd": null,
+      "supplierShippingEvidence": "REPLACE WITH SUPPLIER QUOTE DATE AND SOURCE",
+      "paymentFeePercent": null,
+      "paymentFeeFixedUsd": null,
+      "otherCostsUsd": null
+    }
+  },
+  "listingDetails": {
+    "categoryId": "",
+    "categoryEvidence": "REPLACE with actual TikTok Seller Center category reference",
+    "specs": {
+      "materials": {
+        "value": "",
+        "source": "REPLACE with supplier material specification"
+      },
+      "dimensions": {
+        "value": "",
+        "source": "REPLACE with actual product measurements and supplier sheet"
+      },
+      "packageContents": {
+        "value": "",
+        "source": "REPLACE with verified package contents from supplier"
+      }
+    }
+  },
+  "listingReview": {
+    "approved": false,
+    "fingerprint": "COPY EXACT HASH FROM npm run listing AFTER REVIEW"
+  }
+}

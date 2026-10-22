@@ -1,0 +1,20 @@
+name: Rizz Bin TikTok Manager safety tests
+on:
+  pull_request:
+    paths:
+      - 'rizz-bin-tiktok-manager/**'
+      - '.github/workflows/rizz-bin-tiktok-manager-tests.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run offline product approval and listing safety tests
+        run: npm test
+        working-directory: rizz-bin-tiktok-manager
