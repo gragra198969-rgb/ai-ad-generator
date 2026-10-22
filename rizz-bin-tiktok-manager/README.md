@@ -25,7 +25,35 @@ export SHOPIFY_TIKTOK_PUBLICATION_ID=gid://shopify/Publication/207469838526
 npm test
 npm run audit -- --product gid://shopify/Product/REAL_ID
 npm run status -- --product gid://shopify/Product/REAL_ID
+npm run listing -- --product gid://shopify/Product/REAL_ID --approval approvals/product.json
 ```
+
+## Verified product descriptions, specs and photos
+
+Use `npm run listing -- --product gid://shopify/Product/REAL_ID --approval approvals/product.json` to get a read-only product listing preview. The preview reads **actual Shopify title, description, vendor, SKU, variants, option values and hosted product photos**. Shopify's current Admin API returns featured images through `featuredMedia` and the program normalizes that response before auditing.
+
+Provide TikTok category selection and **supplier-verified** specs in the private approval file. Required values are `materials`, `dimensions`, and `packageContents`, with a dated, traceable `source` for each. The program can flag missing information; it **cannot establish whether an asserted supplier fact is genuine** without a merchant checking the original source. Do not fabricate dimensions, claims, certifications, safety ratings or images. Category-specific mandatory TikTok attributes may require further information.
+
+The preview returns `fingerprint`, a SHA-256 hash of the exact listing details. Set `listingReview.approved=true` and paste that fingerprint into the private approval JSON **only after comparing the preview with primary supplier documents**. The publication command blocks stale or absent approval and still separately requires the shipping, margin, fulfillment, and explicit execution gates.
+
+Example private review fields (replace all placeholders with real verified values, or leave them unapproved):
+
+```json
+{
+  "listingDetails": {
+    "categoryId": "ACTUAL_TIKTOK_CATEGORY_ID",
+    "categoryEvidence": "TikTok Seller Center confirmed category 2026-10-22",
+    "specs": {
+      "materials": {"value": "VERIFIED_MATERIAL", "source": "Supplier spec sheet / date"},
+      "dimensions": {"value": "VERIFIED_DIMENSIONS", "source": "Supplier measurement sheet / date"},
+      "packageContents": {"value": "VERIFIED_CONTENTS", "source": "Supplier packing list / date"}
+    }
+  },
+  "listingReview": {"approved": false, "fingerprint": ""}
+}
+```
+
+**Limit:** Specs entered in the private approval JSON are **not written to Shopify or TikTok**. This prototype validates and prepares them for a merchant to enter in the TikTok sales channel / Seller Center, where TikTok performs its independent approval. The manager only publishes an already-existing, properly completed Shopify product to the existing TikTok sales channel; it does not claim to create full TikTok Shop listings. Shopify product information sync depends on the TikTok channel's field-sync toggles. Review Seller Center status after sync.
 
 ## Explicit one-product approval gate
 
