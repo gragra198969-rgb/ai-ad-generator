@@ -14,5 +14,27 @@
       "paymentFeeFixedUsd": null,
       "otherCostsUsd": null
     }
+  },
+  "listingDetails": {
+    "categoryId": "",
+    "categoryEvidence": "REPLACE with actual TikTok Seller Center category reference",
+    "specs": {
+      "materials": {
+        "value": "",
+        "source": "REPLACE with supplier material specification"
+      },
+      "dimensions": {
+        "value": "",
+        "source": "REPLACE with actual product measurements and supplier sheet"
+      },
+      "packageContents": {
+        "value": "",
+        "source": "REPLACE with verified package contents from supplier"
+      }
+    }
+  },
+  "listingReview": {
+    "approved": false,
+    "fingerprint": "COPY EXACT HASH FROM npm run listing AFTER REVIEW"
   }
 }
