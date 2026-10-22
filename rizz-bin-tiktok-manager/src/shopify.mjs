@@ -48,6 +48,9 @@ export async function listActiveProducts() {
 export async function getTikTokPublication() {
   const id = process.env.SHOPIFY_TIKTOK_PUBLICATION_ID;
   if (!/^gid:\/\/shopify\/Publication\/\d+$/.test(id || "")) throw Error("Set the verified SHOPIFY_TIKTOK_PUBLICATION_ID");
+  // This shop-specific ID was verified against the connected Shopify TikTok channel.
+  // Fail closed rather than accidentally publishing to another live sales channel.
+  if (id !== "gid://shopify/Publication/207469838526") throw Error("Refusing unverified TikTok publication ID");
   const data = await shopify("query{channels(first:50){nodes{id name handle}}publications(first:50){nodes{id}}}");
   if (!data.channels?.nodes?.some(x=>x.name==="TikTok" && x.handle?.startsWith("tiktok"))) throw Error("TikTok sales channel not installed");
   if (!data.publications?.nodes?.some(x=>x.id===id)) throw Error("TikTok publication ID not present in this Shopify shop");
