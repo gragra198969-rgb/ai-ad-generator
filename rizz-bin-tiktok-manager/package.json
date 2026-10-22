@@ -11,6 +11,7 @@
     "test": "node --test",
     "audit": "node src/cli.mjs audit",
     "status": "node src/cli.mjs status",
-    "publish": "node src/cli.mjs publish"
+    "publish": "node src/cli.mjs publish",
+    "listing": "node src/cli.mjs listing"
   }
 }
