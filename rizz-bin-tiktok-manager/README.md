@@ -1,6 +1,6 @@
 # Rizz Bin TikTok Manager — safety-first Shopify publisher
 
-**Status: standalone Node.js prototype; NOT an installed ChatGPT plugin. Not deployed.**
+**Status: standalone Node.js prototype in a separate GitHub review branch; NOT an installed ChatGPT plugin, not deployed, and not authorized to publish products yet.**
 
 This tool helps review products in **The Rizz Bin Store** before making them available to **TikTok's Shopify sales channel**. The existing Shopify–TikTok integration performs TikTok catalog synchronization; this tool does **not** bypass TikTok's approval, identity verification, shipping, category, or seller-policy checks.
 
@@ -14,13 +14,14 @@ This tool helps review products in **The Rizz Bin Store** before making them ava
 ## Before running
 
 1. Confirm TikTok Shop verification and shipping/returns settings in TikTok Seller Center, and confirm the TikTok sales channel is connected in Shopify.
-2. Create a Shopify Admin API access token for a custom app on **your own store** with **read_products** and **write_publications** permissions (additional publication/catalog read permissions might be needed depending on your app scopes). Do not paste tokens into ChatGPT, GitHub issues, or files. Use environment variables.
+2. Create a Shopify Admin API access token for a custom app on **your own store** with the necessary **read_products**, **read_inventory**, **read_publications**, and **write_publications** permissions, to the extent permitted by your Shopify installation. Do not paste tokens into ChatGPT, GitHub issues, or files. Use environment variables.
 3. Use **Node.js 20+**. No npm dependencies. `npm test` runs offline.
 4. Copy `.env.example` to a local **untracked** `.env`, fill in the values and load it using your shell. The program does not load .env files automatically. Keep the Shopify token in a trusted local terminal or secret manager, not GitHub.
 
 ```sh
 export SHOPIFY_SHOP_DOMAIN=the-rizz-bin.myshopify.com
-export SHOPIFY_ADMIN_TOKEN='use-a-secret-manager-in-real-use'
+export SHOPIFY_ADMIN_TOKEN='read-from-your-secret-manager'
+export SHOPIFY_TIKTOK_PUBLICATION_ID=gid://shopify/Publication/207469838526
 npm test
 npm run audit -- --product gid://shopify/Product/REAL_ID
 npm run status -- --product gid://shopify/Product/REAL_ID
@@ -54,6 +55,12 @@ This is **not** a bulk-publishing command. Publication to the Shopify channel is
 - The tool uses Shopify's existing channel. TikTok's own review, inventory policy, category attributes, and brand restrictions are independent.
 - It does not modify product prices, create orders, fulfill orders, activate SMS, or enable paid ads.
 - The approved JSON file should not contain tax IDs, ID scans, customer details, private supplier negotiations, or API tokens.
+
+## How to continue in the cloud
+
+The source is on the `rizz-bin-tiktok-manager-v1` GitHub branch in a separate folder of the existing AI Ad Generator repository. A draft pull request can be reviewed without merging to the live application. GitHub stores and reviews code; this tool will not run automatically in the cloud. For hosted operation, deploy to an authenticated server with a secret manager, after verifying plan and security requirements. **Do not enable an automated scheduler, background publisher, or payment.**
+
+The verified Rizz Bin TikTok publication ID is currently `gid://shopify/Publication/207469838526`; the program fails closed if a different ID is configured. Reverify if you reinstall the channel.
 
 ## ChatGPT plugin roadmap
 
