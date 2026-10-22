@@ -70,7 +70,10 @@ export async function checkTikTokStatus(productId, publicationId) {
   return data.product;
 }
 
-export async function publishTikTok(productId, publicationId) {
+export async function publishTikTok(productId, publicationId, authorization) {
+  // Safety check at the API boundary, not just inside the command-line caller.
+  if (process.env.RIZZ_PUBLISH_CONFIRM !== "YES_PUBLISH_THIS_PRODUCT" || authorization?.reviewed !== true || authorization?.productId !== productId || authorization?.publicationId !== publicationId) throw Error("Publication blocked: reviewed product, verified channel and explicit confirmation required");
+  if (publicationId !== "gid://shopify/Publication/207469838526") throw Error("Publication blocked: TikTok channel ID not verified");
   const query = "mutation($id:ID!,$pub:ID!){publishablePublish(id:$id,input:[{publicationId:$pub}]){publishable{publishedOnPublication(publicationId:$pub)}userErrors{field message}}}";
   const data = await shopify(query,{id:productId,pub:publicationId});
   const result = data.publishablePublish;
