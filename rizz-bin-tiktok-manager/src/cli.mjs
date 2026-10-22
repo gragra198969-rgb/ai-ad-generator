@@ -1,20 +1,27 @@
 #!/usr/bin/env node
 import {readFileSync} from "node:fs";
 import {assessProduct} from "./core.mjs";
+import {buildListingPreview,assessListingReview} from "./listing.mjs";
 import {listActiveProducts,getProduct,getTikTokPublication,checkTikTokStatus,publishTikTok} from "./shopify.mjs";
 
 function arg(name){const i=process.argv.indexOf(name);return i>=0?process.argv[i+1]:undefined;}
 function approval(){const file=arg("--approval");return file?JSON.parse(readFileSync(file,"utf8")):null;}
 const command=process.argv[2];
-const help = "Usage:\n  npm run audit -- [--product gid://shopify/Product/ID] [--approval approvals/private.json]\n  npm run status -- --product gid://shopify/Product/ID\n  npm run publish -- --product gid://shopify/Product/ID --approval approvals/private.json --confirm\n\nPublishing requires VERIFIED margin and shipping evidence, owner approval, AND RIZZ_PUBLISH_CONFIRM=YES_PUBLISH_THIS_PRODUCT.\nNothing publishes automatically. No ads, purchases or supplier orders.\n";
+const help = "Usage:\n  npm run audit -- [--product gid://shopify/Product/ID] [--approval approvals/private.json]\n  npm run status -- --product gid://shopify/Product/ID\n  npm run listing -- --product gid://shopify/Product/ID [--approval approvals/private.json]\n  npm run publish -- --product gid://shopify/Product/ID --approval approvals/private.json --confirm\n\nPublishing requires VERIFIED margin and shipping evidence, owner approval, AND RIZZ_PUBLISH_CONFIRM=YES_PUBLISH_THIS_PRODUCT.\nNothing publishes automatically. No ads, purchases or supplier orders.\n";
 async function main() {
-  if (!["audit","status","publish"].includes(command)) {console.log(help);if(command&&command!=="help")process.exitCode=1;return;}
+  if (!["audit","status","listing","publish"].includes(command)) {console.log(help);if(command&&command!=="help")process.exitCode=1;return;}
   const id=arg("--product");
   if (command!=="audit"&&!id) throw Error("--product required");
   if (command==="audit") {
     const record=approval();
     const products=id?[await getProduct(id)]:await listActiveProducts();
     console.log(JSON.stringify(products.map(p=>assessProduct(p,record?.productId===p.id?record:null)),null,2));
+    return;
+  }
+  if (command==="listing") {
+    const record=approval();
+    const product=await getProduct(id);
+    console.log(JSON.stringify(buildListingPreview(product,record?.listingDetails),null,2));
     return;
   }
   const pub=await getTikTokPublication();
@@ -25,9 +32,12 @@ async function main() {
   }
   // No network mutation can occur before these approval and margin checks.
   const product=await getProduct(id);
-  const report=assessProduct(product,approval());
-  console.log(JSON.stringify(report,null,2));
-  if (!report.eligible) throw Error("Not published: eligibility checks failed");
+  const record=approval();
+  const report=assessProduct(product,record);
+  const preview=buildListingPreview(product,record?.listingDetails);
+  const listingReview=assessListingReview(preview,record);
+  console.log(JSON.stringify({profitAndFulfillment:report,listingReview,listingFingerprint:preview.fingerprint},null,2));
+  if (!report.eligible || !listingReview.eligible) throw Error("Not published: eligibility, description or specifications review failed");
   if (!process.argv.includes("--confirm") || process.env.RIZZ_PUBLISH_CONFIRM!=="YES_PUBLISH_THIS_PRODUCT") throw Error("Not published: explicit confirmation required");
   const status=await checkTikTokStatus(id,pub);
   if (status.publishedOnPublication) {console.log("Already available to Shopify TikTok channel. Check TikTok Seller Center approval.");return;}
