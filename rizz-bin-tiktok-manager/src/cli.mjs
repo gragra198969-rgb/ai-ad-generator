@@ -41,6 +41,6 @@ async function main() {
   if (!process.argv.includes("--confirm") || process.env.RIZZ_PUBLISH_CONFIRM!=="YES_PUBLISH_THIS_PRODUCT") throw Error("Not published: explicit confirmation required");
   const status=await checkTikTokStatus(id,pub);
   if (status.publishedOnPublication) {console.log("Already available to Shopify TikTok channel. Check TikTok Seller Center approval.");return;}
-  console.log(JSON.stringify(await publishTikTok(id,pub),null,2));
+  console.log(JSON.stringify(await publishTikTok(id,pub,{reviewed:true,productId:id,publicationId:pub}),null,2));
 }
 main().catch(e=>{console.error("ERROR: " + e.message);process.exitCode=1;});
