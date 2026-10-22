@@ -24,11 +24,12 @@ export async function shopify(query, variables={}) {
   return payload.data;
 }
 
-const PRODUCT_FIELDS = "id title status featuredImage{url} variants(first:100){nodes{id title price inventoryQuantity inventoryPolicy requiresComponents inventoryItem{requiresShipping unitCost{amount currencyCode}}}pageInfo{hasNextPage}}";
+const PRODUCT_FIELDS = "id title status featuredImage{url} variants(first:100){nodes{id title sku selectedOptions{name value} price inventoryQuantity inventoryPolicy requiresComponents inventoryItem{requiresShipping unitCost{amount currencyCode}}}pageInfo{hasNextPage}}";
+const LISTING_FIELDS = PRODUCT_FIELDS + " description vendor productType media(first:15){nodes{... on MediaImage{image{url altText}}}pageInfo{hasNextPage}}";
 
 export async function getProduct(productId) {
   if (!/^gid:\/\/shopify\/Product\/\d+$/.test(productId || "")) throw Error("Expected Shopify product GID");
-  const data = await shopify("query($id:ID!){product(id:$id){" + PRODUCT_FIELDS + "}}",{id:productId});
+  const data = await shopify("query($id:ID!){product(id:$id){" + LISTING_FIELDS + "}}",{id:productId});
   if (!data.product) throw Error("Shopify product not found");
   return data.product;
 }
