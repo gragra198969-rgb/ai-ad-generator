@@ -18,6 +18,12 @@ export async function POST(req: Request) {
 
   try {
     assertSameOrigin(req);
+    // Fail closed until the merchant explicitly enables this exact checkout plan.
+    // This prevents an older configured price from charging customers while
+    // pricing and entitlements are being changed in Stripe.
+    if (process.env.NEXT_PUBLIC_STRIPE_PRO_CHECKOUT_READY !== "true") {
+      return NextResponse.json({ error: "Subscriptions are temporarily unavailable while billing is being configured." }, { status: 503 });
+    }
     const stripeSecret = process.env.STRIPE_SECRET_KEY;
     const priceId = process.env.STRIPE_PRICE_ID;
     if (!stripeSecret || !process.env.NEXT_PUBLIC_URL || !priceId) {
